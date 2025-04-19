@@ -1,4 +1,4 @@
-# 🛠️ linctf - CTF Linux Recon & Exploitation Toolkit
+## 🛠️ linctf - CTF Linux Recon & Exploitation Toolkit
 
 **linctf** is an all-in-one Bash script designed to assist in CTF and penetration testing scenarios on Linux systems. It helps you gather sensitive information, transfer files, scan for open ports, monitor filesystem activity, brute-force users.
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 📦 Usage
+### 📦 Usage
 
 ```bash
 ./linctf.sh <module> [params]
@@ -14,7 +14,7 @@
 
 ---
 
-## 🔍 Gather Information
+### 🔍 Gather Information
 
 | Module      | Description                                                                 |
 |-------------|-----------------------------------------------------------------------------|
@@ -27,16 +27,17 @@
 
 ---
 
-## 🔎 Port Scanners
+### 🔎 Ports & Network Scanners
 
-| Module      | Description                                                   |
-|-------------|---------------------------------------------------------------|
-| `ncscan`    | Fast TCP port scan using `nc` (preferred method)              |
-| `bashscan`  | Lightweight TCP port scan using Bash built-ins                |
+| Module        | Description                                             |
+|---------------|---------------------------------------------------------|
+| `networkscan` | scan internal network(s) for avail hosts                |
+| `ncscan`      | Fast TCP port scan using `nc` (preferred method)        |
+| `bashscan`    | Lightweight TCP port scan using Bash built-ins          |
 
 ---
 
-## 📤 File Transfer
+### 📤 File Transfer
 
 | Module     | Description                                                   |
 |------------|---------------------------------------------------------------|
@@ -45,17 +46,15 @@
 
 ---
 
-## 🖥️ Local Servers
+### 🖥️ Local Servers
 
-| Module      | Description              |
-|-------------|--------------------------|
+| Module      | Description                |
+|-------------|----------------------------|
 | `httpserver`| Start a Python HTTP server |
-| `ftpserver` | Start a simple FTP server  |
-| `smbserver` | Start a basic SMB server  |
 
 ---
 
-## 🛡️ Monitoring
+### 🛡️ Monitoring
 
 | Module  | Description                        |
 |---------|------------------------------------|
@@ -63,7 +62,7 @@
 
 ---
 
-## 🔐 Brute Force
+### 🔐 Brute Force
 
 | Module     | Description                                      |
 |------------|--------------------------------------------------|
@@ -71,7 +70,7 @@
 
 ---
 
-## 🧰 Other Tools
+### 🧰 Other Tools
 
 | Module         | Description                                    |
 |----------------|------------------------------------------------|
@@ -81,21 +80,20 @@
 
 ---
 
-## ❓ Help
-
+### ❓ Help
+run the script without parameters
 ```bash
-./linctf.sh help
-./linctf.sh -h
+./linctf.sh
 ```
 
 ---
 
-## ⚠️ Disclaimer
+### ⚠️ Disclaimer
 
 This script is intended for **educational purposes** and **authorized penetration testing** only. Do **not** use this on systems without explicit permission. The author is not responsible for any misuse or damage caused.
 
 ---
 
-## 📄 License
+### 📄 License
 
 MIT License
