@@ -139,10 +139,6 @@ function action_users() {
     warn "History possible credentials: ${HISTORY_CREDS}"
   fi
 
-  header "history files"
-  find / -type f -name "*.*history" 2> /dev/null
-  separator
-
   header "who"
   who
   separator
@@ -489,6 +485,12 @@ function action_search_archives() {
 function action_search_env_files() {
   header ".env, .hashes, .credentials files"
   find / -name "*.env" -o -name "*.hashes" -o -name "*.credentials" 2>/dev/null;
+  separator
+}
+
+function action_search_history_files() {
+  header "history files"
+  find / -type f -name "*.*history" -exec ls -la {} \; 2> /dev/null
   separator
 }
 
@@ -970,12 +972,13 @@ function script_info() {
   action_users
   action_cron
   action_network
-  action_kerberos
   action_services
 }
 
 function script_files() {
   action_search_env_files
+  action_search_history_files
+  action_kerberos
   action_search_project_config_files
   action_search_db_files
   action_search_backups
@@ -1011,9 +1014,78 @@ function script_installed_soft() {
   # TODO list installed binaries & check for GTFObins
 }
 
+function script_scan_local_networks() {
+    if [[ "$1" == "-h" ]]; then
+      echo -e "usage: $SCRIPT $INNER_SCRIPT [IP/CIDR]"
+      exit 1
+    fi
+
+    get_ips_and_masks() {
+
+        if [[ -n $1 ]]; then
+          echo "$1"
+          return
+        fi
+
+        if command -v ip &>/dev/null; then
+            ip -4 addr show scope global | awk '/inet / {print $2}'
+        elif command -v ifconfig &>/dev/null; then
+            ifconfig | awk '/inet / && $2 != "127.0.0.1" {print $2, $4}' | while read ip mask; do
+                echo "$ip/$(mask2cidr $mask)"
+            done
+        else
+            cat /proc/net/fib_trie | grep '+--' | awk '{print $2}' | sort -u | grep -vE '^127|^0'
+        fi
+    }
+
+    mask2cidr() {
+        local mask=$1
+        IFS=. read -r i1 i2 i3 i4 <<< "$mask"
+        local bin=$(printf "%08d%08d%08d%08d" \
+            "$(bc <<< "obase=2;$i1")" \
+            "$(bc <<< "obase=2;$i2")" \
+            "$(bc <<< "obase=2;$i3")" \
+            "$(bc <<< "obase=2;$i4")")
+        echo "${bin//0/}" | wc -c
+    }
+
+    ip_to_int() {
+        local ip="$1"
+        IFS=. read -r o1 o2 o3 o4 <<< "$ip"
+        echo $(( (o1 << 24) + (o2 << 16) + (o3 << 8) + o4 ))
+    }
+
+    int_to_ip() {
+        local ip=$1
+        echo "$(( (ip >> 24) & 255 )).$(( (ip >> 16) & 255 )).$(( (ip >> 8) & 255 )).$(( ip & 255 ))"
+    }
+
+    # print found IPs and masks
+    echo -e "${GREEN}[+]${NC} Local IP/mask:"
+    get_ips_and_masks $1
+
+    for cidr in $(get_ips_and_masks $1); do
+        IFS=/ read ip mask <<< "$cidr"
+        [[ -z "$ip" || -z "$mask" ]] && continue
+
+        echo -e "\n${YELLOW}[*] Scanning $cidr${NC}"
+        ip_int=$(ip_to_int "$ip")
+        netmask=$(( 0xFFFFFFFF << (32 - mask) & 0xFFFFFFFF ))
+        network=$(( ip_int & netmask ))
+        broadcast=$(( network | ~netmask & 0xFFFFFFFF ))
+
+        for ((host=network+1; host<broadcast; host++)); do
+            target=$(int_to_ip "$host")
+            [[ "$target" == "$ip" ]] && continue
+            (ping -c1 -W1 "$target" &>/dev/null && echo -e "${GREEN}[+]${NC} Host up: $target") &
+        done
+        wait
+    done
+}
+
 function script_ports_scanner() {
   if [[ -z $1 ]]; then
-    echo -e "usage: $SCRIPT $INNER_SCRIPT <IP> [start port-1] [end port-65535]"
+    echo -e "usage: $SCRIPT $INNER_SCRIPT <IP> [start port - 1] [end port - 65535]"
     exit 1
   fi
 
@@ -1218,7 +1290,7 @@ function script_start_smb_server() {
 
 function script_start_ftp_server() {
     header "TODO starting ftp server"
-    # TODO
+
 }
 
 function script_exec_remote_bash() {
@@ -1363,31 +1435,32 @@ function help() {
     echo -e "usage: ${0} ${YELLOW}<script>${NC} [params]"
 
     echo -e " ${BLUE}gather info scripts:${NC}"
-    echo -e "   ${YELLOW}info${NC}      \t fast - prints users, netstat, search kerberos files, etc..."
-    echo -e "   ${YELLOW}files${NC}     \t search db, sql, backup, scripts, config, SUID, GUID files"
-    echo -e "   ${YELLOW}passwords${NC} \t search passwords, ssh keys, api keys, tokens in files (slow)"
-    echo -e "   ${YELLOW}logs${NC}      \t search interesting in logs"
-    echo -e "   ${YELLOW}searchw${NC}   \t search writable directories & files"
+    echo -e "   ${YELLOW}info${NC}          \t fast - prints users, netstat, search kerberos files, etc..."
+    echo -e "   ${YELLOW}files${NC}         \t search db, sql, backup, scripts, config, SUID, GUID files"
+    echo -e "   ${YELLOW}passwords${NC}     \t search passwords, ssh keys, api keys, tokens in files (slow)"
+    echo -e "   ${YELLOW}logs${NC}          \t search interesting in logs"
+    echo -e "   ${YELLOW}searchw${NC}       \t search writable directories & files"
     echo -e "   ${YELLOW}installedsoft${NC} \t list installed packages & soft"
 
     echo -e "\n ${BLUE}scaner scripts:${NC}"
-    echo -e "   ${YELLOW}ncscan${NC} [params]      \t simple TCP ports scanner using nc (preferable)"
-    echo -e "   ${YELLOW}bashscan${NC} [params]    \t simple TCP ports scanner using bash"
+    echo -e "   ${YELLOW}networkscan${NC} [params]     \t scan internal network(s) for avail hosts"
+    echo -e "   ${YELLOW}ncscan${NC} [params]          \t simple TCP ports scanner using nc (preferable)"
+    echo -e "   ${YELLOW}bashscan${NC} [params]        \t simple TCP ports scanner using bash"
 
     echo -e "\n ${BLUE}transfer files scripts:${NC}"
-    echo -e "   ${YELLOW}sendf${NC} [params]         \t send file to remote server (http[s], smb, ftp)"
-    echo -e "   ${YELLOW}download${NC} [params]      \t download file (http[s], smb, ftp)"
+    echo -e "   ${YELLOW}sendf${NC} [params]           \t send file to remote server (http[s], smb, ftp)"
+    echo -e "   ${YELLOW}download${NC} [params]        \t download file (http[s], smb, ftp)"
 
     echo -e "\n ${BLUE}local server scripts:${NC}"
-    echo -e "   ${YELLOW}httpserver${NC} [params]     \t start http server"
-    echo -e "   ${YELLOW}ftpserver${NC} [params]      \t start ftp server"
-    echo -e "   ${YELLOW}smbserver${NC} [params]      \t start smb server"
+    echo -e "   ${YELLOW}httpserver${NC} [params]      \t start http server"
+#    echo -e "   ${YELLOW}ftpserver${NC} [params]      \t start ftp server"
+#    echo -e "   ${YELLOW}smbserver${NC} [params]      \t start smb server"
 
     echo -e "\n ${BLUE}monitor scripts:${NC}"
-    echo -e "   ${YELLOW}fsmon${NC} [params]      \t monitoring FS changes"
+    echo -e "   ${YELLOW}fsmon${NC} [params]           \t monitoring FS changes"
 
     echo -e "\n ${BLUE}bruteforce scripts:${NC}"
-    echo -e "   ${YELLOW}localuser${NC} [params]  \t bruteforce local user (using bash su -)"
+    echo -e "   ${YELLOW}localuser${NC} [params]       \t bruteforce local user (using bash su -)"
 
     echo -e "\n ${BLUE}other:${NC}"
     echo -e "   ${YELLOW}rexec${NC} [params]              \t execute remote bash|sh script"
@@ -1398,7 +1471,7 @@ function help() {
     echo -e "\n ${BLUE}help or -h: tips${NC}"
 }
 
-scripts="info files passwords logs searchw installedsoft bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon obfuscate localuser sectooldetect help -h"
+scripts="info files passwords logs searchw installedsoft networkscan bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon obfuscate localuser sectooldetect help -h"
 if [[ -z "$1" || ! "$scripts" =~ (^|[[:space:]])"$1"($|[[:space:]]) ]]; then
   help
   exit 1
@@ -1411,7 +1484,8 @@ case "$INNER_SCRIPT" in
   "passwords") script_passwords ;;
   "logs") script_logs ;;
   "installedsoft") script_installed_soft ;;
-
+  
+  "networkscan") script_scan_local_networks "$2" "$3" "$4" "$5" ;;
   "bashscan") script_ports_scanner "$2" "$3" "$4" "$5" ;;
   "ncscan") script_ports_ncscanner "$2" "$3" "$4" "$5" ;;
 
