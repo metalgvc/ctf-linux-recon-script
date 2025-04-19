@@ -36,7 +36,7 @@ function warn() { msg=$1; echo -e "${YELLOW}${msg}${NC}"; }
 # ======================================================================================================================
 # kerberos tickets
 
-function action_kerberos() {
+function action_search_kerberos_files() {
   header "search kerberos tickets"
   tip "https://academy.hackthebox.com/module/147/section/1657"
   #tip "import ticket into session: klist -k -t /path/to/keytab && smbclient //dc01/userdir -k -c ls"
@@ -402,7 +402,7 @@ function action_services() {
 # ======================================================================================================================
 # search files
 
-function action_search_project_config_files() {
+function action_search_projectconfig_files() {
   local SEARCH_IN="/var/www/* /home/* /opt/*"
   local EXT=".php .py .rb .sh .go"
   header "projects configs: ${EXT} IN ${SEARCH_IN}"
@@ -427,7 +427,7 @@ function action_search_db_files() {
 }
 
 
-function action_search_backups() {
+function action_search_backups_files() {
   local EXT=".bak .backup passwd* shadow*"
   header "files: ${EXT}"
   for ext in $(echo $EXT); do
@@ -452,7 +452,7 @@ function action_search_script_files() {
 }
 
 
-function action_search_sys_configs() {
+function action_search_sysconfigs_files() {
   local EXT=".conf .config .cnf .cf"
   header "FILES: ${EXT}"
   for ext in $(echo $EXT); do
@@ -462,7 +462,7 @@ function action_search_sys_configs() {
   separator
 }
 
-function action_search_docs() {
+function action_search_docs_files() {
   local EXT=".xls .xls* .xltx .csv .od* .doc .doc* .pdf .pot .pot* .pp*"
   header "FILES: ${EXT}"
   for ext in $(echo $EXT); do
@@ -472,7 +472,7 @@ function action_search_docs() {
   separator
 }
 
-function action_search_archives() {
+function action_search_archives_files() {
   local EXT=".zip .rar .7z"
   header "FILES: ${EXT}"
   for ext in $(echo $EXT); do
@@ -500,7 +500,7 @@ function action_search_large_files() {
     separator
 }
 
-function action_search_recent() {
+function action_search_recent_files() {
   header "recent modified files"
   find / -type f -mmin -5 -not -path "/proc/*" 2>/dev/null
   separator
@@ -521,7 +521,7 @@ function action_search_acl_files() {
   separator
 }
 
-function action_other_files() {
+function action_search_vimrc_files() {
     header ".vimrc files"
     find /home/* -type f -name ".vimrc" 2> /dev/null
     separator
@@ -968,6 +968,28 @@ function action_fsmon() {
 # ======================================================================================================================
 
 function script_info() {
+
+  if [[ "$1" == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [action]\n"
+    echo -e " ${BLUE}actions:${NC}"
+    echo -e "   ${YELLOW}system${NC}      \t OS, kernel, CPU, memory, disk, mounts, processes"
+    echo -e "   ${YELLOW}users${NC}       \t passwd, groups, sudoers, ssh keys"
+    echo -e "   ${YELLOW}cron${NC}        \t cron jobs, at jobs"
+    echo -e "   ${YELLOW}network${NC}     \t interfaces, routes, iptables, arp"
+    echo -e "   ${YELLOW}services${NC}    \t systemd, services"
+    echo -e "\n no action - run all"
+    exit 1
+  fi
+
+  local actions="system users cron network services"
+
+  # run separate action
+  if [[ -n $1 ]]; then
+    eval "action_$1"
+    return $?
+  fi
+
+  # else run all
   action_system
   action_users
   action_cron
@@ -976,21 +998,51 @@ function script_info() {
 }
 
 function script_files() {
+  if [[ "$1" == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [action]\n"
+    echo -e " ${BLUE}actions:${NC}"
+    echo -e "   ${YELLOW}env${NC}         \t .env, .hashes, .credentials files"
+    echo -e "   ${YELLOW}history${NC}     \t history files"
+    echo -e "   ${YELLOW}kerberos${NC}    \t kerberos tickets"
+    echo -e "   ${YELLOW}projectconfig${NC} \t project configs"
+    echo -e "   ${YELLOW}db${NC}          \t db files & sql"
+    echo -e "   ${YELLOW}backups${NC}     \t backups files"
+    echo -e "   ${YELLOW}script${NC}      \t script files"
+    echo -e "   ${YELLOW}sysconfigs${NC}  \t system configs"
+    echo -e "   ${YELLOW}docs${NC}        \t documents"
+    echo -e "   ${YELLOW}archives${NC}    \t archives files"
+    echo -e "   ${YELLOW}large${NC}       \t large files"
+    echo -e "   ${YELLOW}recent${NC}      \t recent modified files"
+    echo -e "   ${YELLOW}suid${NC}        \t SUID files"
+    echo -e "   ${YELLOW}acl${NC}         \t ACL files"
+    echo -e "   ${YELLOW}vimrc${NC}       \t .vimrc files"
+    echo -e "\n no action - run all"
+    exit 1
+  fi
+
+  local actions="env history kerberos projectconfig db backups script sysconfigs docs archives large recent suid acl vimrc"
+
+  # run separate action
+  if [[ -n $1 ]]; then
+    eval "action_search_${1}_files"
+    return $?
+  fi
+
   action_search_env_files
   action_search_history_files
-  action_kerberos
-  action_search_project_config_files
+  action_search_kerberos_files
+  action_search_projectconfig_files
   action_search_db_files
-  action_search_backups
+  action_search_backups_files
   action_search_script_files
-  action_search_sys_configs
-  action_search_docs
-  action_search_archives
+  action_search_sysconfigs_files
+  action_search_docs_files
+  action_search_archives_files
   action_search_large_files
-  action_search_recent
+  action_search_recent_files
   action_search_suid_files
   action_search_acl_files
-  action_other_files
+  action_search_vimrc_files
 }
 
 function script_search_writable_dirs_files() {
@@ -1016,7 +1068,7 @@ function script_installed_soft() {
 
 function script_scan_local_networks() {
     if [[ "$1" == "-h" ]]; then
-      echo -e "usage: $SCRIPT $INNER_SCRIPT [IP/CIDR]"
+      echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [IP/CIDR]"
       exit 1
     fi
 
@@ -1085,7 +1137,7 @@ function script_scan_local_networks() {
 
 function script_ports_scanner() {
   if [[ -z $1 ]]; then
-    echo -e "usage: $SCRIPT $INNER_SCRIPT <IP> [start port - 1] [end port - 65535]"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <IP> [start port - 1] [end port - 65535]"
     exit 1
   fi
 
@@ -1102,7 +1154,7 @@ function script_ports_scanner() {
 
 function script_ports_ncscanner() {
   if [[ -z $1 ]]; then
-    echo -e "usage: $SCRIPT $INNER_SCRIPT <IP> [start port-1] [end port-65535]"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <IP> [start port-1] [end port-65535]"
     #echo -e "usage: $SCRIPT $INNER_SCRIPT <IP> [start port-1] [end port-65535] [tcp|udp]"
     #echo -e " udp scan is very slow - 1 second per port"
     exit 1
@@ -1122,7 +1174,7 @@ function script_ports_ncscanner() {
 
 function script_sendfile() {
   if [[ "$1" == "-h" || -z $1 || -z $2 || ! -f $2 ]]; then
-    echo -e "usage: $SCRIPT $INNER_SCRIPT <[http(s)|smb|ftp://]URL> <FILEPATH>"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <[http(s)|smb|ftp://]URL> <FILEPATH>"
     exit 1
   fi
 
@@ -1155,7 +1207,7 @@ function script_sendfile() {
 
 function script_start_httpserver() {
   if [[ "$1" == "-h" ]]; then
-    echo -e "usage: $SCRIPT $INNER_SCRIPT [port] [directory]"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [port] [directory]"
     exit 1
   fi
 
@@ -1212,7 +1264,7 @@ function script_start_httpserver() {
 
 function script_bruteforce_localuser() {
   if [[ -z "$1" || -z "$2" || ! -f "$2" ]]; then
-    echo -e "usage: $SCRIPT $INNER_SCRIPT <user> <password list filepath>"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <user> <password list filepath>"
     exit 1
   fi
 
@@ -1295,7 +1347,7 @@ function script_start_ftp_server() {
 
 function script_exec_remote_bash() {
   if [[ "$1" == "-h" || -z $1 ]]; then
-    echo -e "usage: $SCRIPT $INNER_SCRIPT <SCRIPT_URL>"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <SCRIPT_URL>"
     exit 1
   fi
 
@@ -1339,7 +1391,7 @@ function script_exec_remote_bash() {
 
 function script_download_file() {
   if [[ "$1" == "-h" || -z $1 ]]; then
-    echo -e "usage: $SCRIPT $INNER_SCRIPT <[http(s)://|smb://|ftp://|nc://]FILE_URL>"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <[http(s)://|smb://|ftp://|nc://]FILE_URL>"
     exit 1
   fi
 
@@ -1362,7 +1414,7 @@ function script_download_file() {
 
 function script_fsmon() {
   if [[ "$1" == "-h" || -z $1 ]]; then
-    echo -e "usage: $SCRIPT $INNER_SCRIPT <path> [count of files]"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <path> [count of files]"
     exit 1
   fi
 
@@ -1371,7 +1423,7 @@ function script_fsmon() {
 
 function script_obfuscate() {
   if [[ "$1" == "-h" || -z $1 || ! -f $1 ]]; then
-    echo -e "usage: $SCRIPT $INNER_SCRIPT <script path> [output script name]"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <script path> [output script name]"
     exit 1
   fi
 
@@ -1432,7 +1484,7 @@ function script_help() {
 }
 
 function help() {
-    echo -e "usage: ${0} ${YELLOW}<script>${NC} [params]"
+    echo -e "${GREEN}usage:${NC} ${0} ${YELLOW}<script>${NC} [params]\n"
 
     echo -e " ${BLUE}gather info scripts:${NC}"
     echo -e "   ${YELLOW}info${NC}          \t fast - prints users, netstat, search kerberos files, etc..."
@@ -1467,8 +1519,8 @@ function help() {
     echo -e "   ${YELLOW}sectooldetect${NC} [params]      \t detect security tools"
     echo -e "   ${YELLOW}obfuscate${NC} [params]          \t obfuscate script"
 
-
-    echo -e "\n ${BLUE}help or -h: tips${NC}"
+    echo -e "---\n\nhelp or -h: tips"
+    echo -e "${0} <script> -h \t script help"
 }
 
 scripts="info files passwords logs searchw installedsoft networkscan bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon obfuscate localuser sectooldetect help -h"
@@ -1478,8 +1530,8 @@ if [[ -z "$1" || ! "$scripts" =~ (^|[[:space:]])"$1"($|[[:space:]]) ]]; then
 fi
 
 case "$INNER_SCRIPT" in
-  "info") script_info ;;
-  "files") script_files ;;
+  "info") script_info "$2" ;;
+  "files") script_files "$2" ;;
   "searchw") script_search_writable_dirs_files ;;
   "passwords") script_passwords ;;
   "logs") script_logs ;;
