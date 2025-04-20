@@ -16,14 +16,14 @@
 
 ### 🔍 Gather Information
 
-| Module      | Description                                                                 |
-|-------------|-----------------------------------------------------------------------------|
-| `info`      | Fast recon: users, netstat, Kerberos files, and more                       |
-| `files`     | Search for databases, backups, config files, scripts, SUID/GUID binaries   |
-| `passwords` | Search for passwords, API keys, tokens, and SSH keys (slow)                |
-| `logs`      | Look for juicy info inside log files                                       |
-| `searchw`   | Find writable files and directories                                        |
-| `installedsoft` | List installed software and packages                                  |
+| Module      | Description                                                               |
+|-------------|---------------------------------------------------------------------------|
+| `info`      | Fast recon: users, netstat, and more                       |
+| `files`     | Search for databases, backups, config files, scripts, SUID/GUID binaries |
+| `passwords` | Search for passwords, API keys, tokens, and SSH keys (slow)              |
+| `logs`      | Look for juicy info inside log files                                     |
+| `searchw`   | Find writable files and directories                                      |
+| `installedsoft` | List installed software and packages                                |
 
 ---
 

@@ -48,7 +48,9 @@ function action_search_kerberos_files() {
   header "possible kerberos tickets"
   find / -name '*.kt' -ls 2>/dev/null
   separator
+}
 
+function action_kerberos() {
   header "PS - Check if Linux Machine is Domain Joined"
   ps -ef | grep -i "winbind\|sssd"
   separator
@@ -62,7 +64,7 @@ function action_search_kerberos_files() {
   header "Finding ccache Files"
   tip "https://academy.hackthebox.com/module/147/section/1657"
   tip "ls -la /tmp && cp /tmp/krb5cc_file . && export KRB5CCNAME=/root/krb5cc_file && klist && smbclient //dc01/C$ -k -c ls -no-pass"
-  env | grep -i krb5
+  env | grep -i krb
   separator
 }
 
@@ -977,11 +979,12 @@ function script_info() {
     echo -e "   ${YELLOW}cron${NC}        \t cron jobs, at jobs"
     echo -e "   ${YELLOW}network${NC}     \t interfaces, routes, iptables, arp"
     echo -e "   ${YELLOW}services${NC}    \t systemd, services"
+    echo -e "   ${YELLOW}kerberos${NC}    \t check is domain joined, env krb"
     echo -e "\n no action - run all"
     exit 1
   fi
 
-  local actions="system users cron network services"
+  local actions="system users cron network services kerberos"
 
   # run separate action
   if [[ -n $1 ]]; then
@@ -995,6 +998,7 @@ function script_info() {
   action_cron
   action_network
   action_services
+  action_kerberos
 }
 
 function script_files() {
@@ -1013,7 +1017,7 @@ function script_files() {
     echo -e "   ${YELLOW}archives${NC}    \t archives files"
     echo -e "   ${YELLOW}large${NC}       \t large files"
     echo -e "   ${YELLOW}recent${NC}      \t recent modified files"
-    echo -e "   ${YELLOW}suid${NC}        \t SUID files"
+    echo -e "   ${YELLOW}suid${NC}        \t SUID & GUID files"
     echo -e "   ${YELLOW}acl${NC}         \t ACL files"
     echo -e "   ${YELLOW}vimrc${NC}       \t .vimrc files"
     echo -e "\n no action - run all"
@@ -1487,7 +1491,7 @@ function help() {
     echo -e "${GREEN}usage:${NC} ${0} ${YELLOW}<script>${NC} [params]\n"
 
     echo -e " ${BLUE}gather info scripts:${NC}"
-    echo -e "   ${YELLOW}info${NC}          \t fast - prints users, netstat, search kerberos files, etc..."
+    echo -e "   ${YELLOW}info${NC}          \t fast - prints users, netstat, etc..."
     echo -e "   ${YELLOW}files${NC}         \t search db, sql, backup, scripts, config, SUID, GUID files"
     echo -e "   ${YELLOW}passwords${NC}     \t search passwords, ssh keys, api keys, tokens in files (slow)"
     echo -e "   ${YELLOW}logs${NC}          \t search interesting in logs"
