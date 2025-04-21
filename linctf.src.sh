@@ -758,8 +758,8 @@ function action_send_file_https() {
   #tips "openssl req -x509 -out /root/.config/tmpcert.pem -keyout /root/.config/tmpcert.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=server'"
   #tips "pipx run uploadserver 443 --server-certificate /root/.config/tmpcert.pem"
 
-  local URL=$1
-  local FILEPATH=$2
+  local FILEPATH=$1
+  local URL=$2
   local HOST="${URL##*://}"
   HOST="${HOST%%/*}"
   local PORT=443
@@ -834,8 +834,8 @@ function action_send_file_https() {
 }
 
 function action_send_file_http() {
-  local URL=$1
-  local FILEPATH=$2
+  local FILEPATH=$1
+  local URL=$2
   local HOST="${URL##*://}"
   HOST="${HOST%%/*}"
   local PORT=80
@@ -1332,12 +1332,12 @@ function script_ports_ncscanner() {
 
 function script_sendfile() {
   if [[ "$1" == "-h" || -z $1 || -z $2 || ! -f $2 ]]; then
-    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <[http(s)|smb|ftp://]URL> <FILEPATH>"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <FILEPATH> <[http(s)://]URL>"
     exit 1
   fi
 
-  local URL=$1
-  local FILEPATH=$2
+  local FILEPATH=$1
+  local URL=$2
   local CHECKSUM=$(md5sum $FILEPATH)
 
   local rslt=1
@@ -1346,12 +1346,12 @@ function script_sendfile() {
 
   # try send file using https
   if [[ $URL == https* ]]; then
-    action_send_file_https "$URL" "$FILEPATH"
+    action_send_file_https "$FILEPATH" "$URL"
     rslt=$?
 
   # try send using http
   elif [[ $URL == http* ]]; then
-    action_send_file_http "$URL" "$FILEPATH"
+    action_send_file_http "$FILEPATH" "$URL"
     rslt=$?
   fi
 
@@ -1555,7 +1555,7 @@ function script_exec_remote_bash() {
 
 function script_download_file() {
   if [[ "$1" == "-h" || -z $1 ]]; then
-    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <[http(s)://|smb://|ftp://|nc://]FILE_URL>"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <[http(s)://]FILE_URL>"
     exit 1
   fi
 
@@ -1668,8 +1668,8 @@ function help() {
     echo -e "   ${YELLOW}bashscan${NC}      [params]     \t simple TCP ports scanner using bash"
 
     echo -e "\n ${BLUE}transfer files scripts:${NC}"
-    echo -e "   ${YELLOW}sendf${NC}         [params]     \t send file to remote server (http[s], smb, ftp)"
-    echo -e "   ${YELLOW}download${NC}      [params]     \t download file (http[s], smb, ftp)"
+    echo -e "   ${YELLOW}sendf${NC}         [params]     \t send file to remote server (http[s])"
+    echo -e "   ${YELLOW}download${NC}      [params]     \t download file (http[s])"
 
     echo -e "\n ${BLUE}local server scripts:${NC}"
     echo -e "   ${YELLOW}httpserver${NC}    [params]     \t start http server"
@@ -1685,7 +1685,7 @@ function help() {
     echo -e "\n ${BLUE}other:${NC}"
     echo -e "   ${YELLOW}rexec${NC}         [params]     \t execute remote bash|sh script"
     echo -e "   ${YELLOW}sectooldetect${NC} [params]     \t detect security tools"
-    echo -e "   ${YELLOW}minify${NC}     [params]        \t minify script using gzip & base64"
+    echo -e "   ${YELLOW}minify${NC}        [params]     \t minify script using gzip & base64"
 
     echo -e "---\n\nhelp or -h: help & tips"
 }

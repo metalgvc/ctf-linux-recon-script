@@ -40,10 +40,10 @@
 
 ### File Transfer
 
-| Module     | Description                                                   |
-|------------|---------------------------------------------------------------|
-| `sendf`    | Send a file to a remote server via HTTP[S], SMB, or FTP       |
-| `download` | Download a file from HTTP[S], SMB, or FTP                     |
+| Module     | Description                                         |
+|------------|-----------------------------------------------------|
+| `sendf`    | Send a file to a remote server via HTTP[S]          |
+| `download` | Download a file from HTTP[S]                        |
 
 ---
 
