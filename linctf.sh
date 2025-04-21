@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # metalgvc
-VERSION="1.0.1"
+VERSION="1.0.2"
 
 export HISTSIZE=0
 export HISTFILE=/dev/null
@@ -389,18 +389,80 @@ function action_services() {
     fi
 }
 
+function action_isincontainer() {
+  local ISINDOCKER=0
+  local ISINLXC=0
+
+  # Docker
+  echo -e "${YELLOW}[*] Checking if inside Docker...${NC}"
+  if [ -f /.dockerenv ]; then
+    echo -e "${GREEN}[+]${NC} /.dockerenv file exists"
+    ISINDOCKER=1
+  fi
+
+  if [ $(cat /proc/1/cgroup) == "0::/" ]; then
+    echo -e "${GREEN}[+]${NC} 'cat /proc/1/cgroup == 0::/' - probably inside Docker"
+    ISINDOCKER=1
+  fi
+
+  if grep -q docker /run/systemd/container 2>/dev/null; then
+    echo -e "${GREEN}[+]${NC} 'docker' found in /run/systemd/container"
+    ISINDOCKER=1
+  fi
+
+  if grep -q 'overlay / ' /proc/mounts 2>/dev/null | grep docker; then
+    echo -e "${GREEN}[+]${NC} overlay filesystem as root found"
+    ISINDOCKER=1
+  fi
+
+  if ! command -v sudo &>/dev/null; then
+    echo -e "${GREEN}[-]${NC} sudo not found - probably inside container (LXC or Docker or ...)"
+    ISINDOCKER=1
+  fi
+
+  if [[ $(hostname) =~ ^[0-9a-f]{12}$ ]]; then
+    echo -e "${GREEN}[+]${NC} Hostname matches Docker container pattern: $(hostname)"
+    ISINDOCKER=1
+  fi
+
+  # TODO LXC (not tested)
+  echo -e "\n${YELLOW}[*] Checking if inside LXC...${NC}"
+
+  if grep -q lxc /proc/self/mountinfo 2>/dev/null; then
+    echo -e "${GREEN}[+]${NC} 'lxc' found in /proc/self/mountinfo"
+    ISINLXC=1
+  fi
+
+  if grep -qi lxc /run/systemd/container 2>/dev/null; then
+    echo -e "${GREEN}[+]${NC} 'lxc' found in /run/systemd/container"
+    ISINLXC=1
+  fi
+
+  if [[ $ISINDOCKER -eq 1 ]]; then
+    echo -e "\n${RED}[*] Probably inside a Docker container${NC}"
+  fi
+
+  if [[ $ISINLXC -eq 1 ]]; then
+    echo -e "\n${RED}[*] Probably inside an LXC container${NC}"
+  fi
+
+  if [[ $ISINDOCKER -eq 0 && $ISINLXC -eq 0 ]]; then
+    echo -e "\n${RED}[*]${NC} Probably on the host"
+  fi
+}
+
 # ======================================================================================================================
 # search files
 
 function action_search_projectconfig_files() {
   local SEARCH_IN="/var/www/* /home/* /opt/*"
-  local EXT=".php .py .rb .sh .go"
+  local EXT=".php .py .rb .sh .go .js"
   header "projects configs: ${EXT} IN ${SEARCH_IN}"
   for dir in $(echo $SEARCH_IN); do
     #echo -e "\n${YELLOW}Search in: ${dir}${NC}";
     for ext in $(echo $EXT); do
-      find $dir -name *conf*$ext 2>/dev/null | grep -v -E '(/.local/)|(/lib/python)';
-      find $dir -name *setting*$ext 2>/dev/null | grep -v -E '(/.local/)|(/lib/python)';
+      find $dir -iname *conf*$ext 2>/dev/null | grep -v -E '(/.local/)|(/lib/python)';
+      find $dir -iname *setting*$ext 2>/dev/null | grep -v -E '(/.local/)|(/lib/python)';
     done
   done
   separator
@@ -422,7 +484,7 @@ function action_search_backups_files() {
   header "files: ${EXT}"
   for ext in $(echo $EXT); do
     #echo -e "\n${YELLOW}File extension: ${ext}${NC}";
-    find / -name *$ext 2>/dev/null | grep -v "doc\|lib\|headers\|share\|man" | grep -v -E '(/usr/bin/)|(/usr/sbin/)';
+    find / -iname *$ext 2>/dev/null | grep -v "doc\|lib\|headers\|share\|man" | grep -v -E '(/usr/bin/)|(/usr/sbin/)';
   done
   separator
 }
@@ -435,7 +497,7 @@ function action_search_script_files() {
   for dir in $(echo $SEARCH_IN); do
     #echo -e "\n${YELLOW}Search in: ${dir}${NC}";
     for ext in $(echo $EXT); do
-      find $dir -name *$ext 2>/dev/null | grep -v "doc\|lib\|headers\|share\|node_modules";
+      find $dir -iname *$ext 2>/dev/null | grep -v "doc\|lib\|headers\|share\|node_modules";
     done
   done
   separator
@@ -447,7 +509,7 @@ function action_search_sysconfigs_files() {
   header "FILES: ${EXT}"
   for ext in $(echo $EXT); do
     echo -e "\n${YELLOW}File extension: ${ext}${NC}";
-    find / -name *$ext 2>/dev/null | grep -v "lib\|fonts\|share\|core\|headers\|.oh-my-zsh";
+    find / -iname *$ext 2>/dev/null | grep -v "lib\|fonts\|share\|core\|headers\|.oh-my-zsh";
   done
   separator
 }
@@ -457,7 +519,7 @@ function action_search_docs_files() {
   header "FILES: ${EXT}"
   for ext in $(echo $EXT); do
     echo -e "\n${YELLOW}File extension: ${ext}${NC}";
-    find / -name *$ext 2>/dev/null | grep -v "lib\|fonts\|share\|core";
+    find / -iname *$ext 2>/dev/null | grep -v "lib\|fonts\|share\|core";
   done
   separator
 }
@@ -467,7 +529,7 @@ function action_search_archives_files() {
   header "FILES: ${EXT}"
   for ext in $(echo $EXT); do
     echo -e "\n${YELLOW}File extension: ${ext}${NC}";
-    find / -name *$ext 2>/dev/null | grep -v "lib\|fonts\|share\|core";
+    find / -iname *$ext 2>/dev/null | grep -v "lib\|fonts\|share\|core";
   done
   separator
 }
@@ -520,7 +582,7 @@ function action_search_vimrc_files() {
 function action_search_usernotes_files() {
   header "user notes"
 
-  find /home/* -type f \( -name "*.txt" -o ! -name "*.*" \) -size -10k \
+  find /home/* -type f \( -iname "*.txt" -o ! -name "*.*" \) -size -10k \
       \( ! -path "*/.mozilla/*" -a ! -path "*/.oh-my-zsh/*" -a ! -path "*/.local/*" \
       -a ! -path "*/.BurpSuite/*" -a ! -path "*/.git/*" -a ! -path "*/LICENSE" \
       -a ! -path "*/lib/*" -a ! -path "*/.npm/*" -a ! -path "*/.config/*" \
@@ -622,16 +684,7 @@ function action_installed_packages() {
 # ======================================================================================================================
 # logs
 
-function action_parse_logs() {
-  header "parse logs"
-  for i in $(ls /var/log/* 2>/dev/null); do
-    GREP=$(grep "accepted\|session opened\|session closed\|failure\|failed\|ssh\|password changed\|new user\|delete user\|sudo\|COMMAND\=\|logs" $i 2>/dev/null);
-    if [[ $GREP ]]; then
-      echo -e "\n${YELLOW}#### Log file: ${i}${NC}";
-      grep "accepted\|session opened\|session closed\|failure\|failed\|ssh\|password changed\|new user\|delete user\|sudo\|COMMAND\=\|logs" $i 2>/dev/null;
-    fi;
-  done
-  separator
+function action_logs_tips() {
 
   tip "see logs also:"
   tips "/var/log/messages   Generic system activity logs."
@@ -647,6 +700,53 @@ function action_parse_logs() {
   tips "/var/log/httpd      All Apache related logs."
   tips "/var/log/mysqld.log All MySQL server related logs."
 
+  separator
+}
+
+function action_logs_secrets() {
+  header "passwords, tokens, secrets"
+  echo -e "${YELLOW}hardcoded credentials, exposed API tokens, or secrets${NC}"
+  grep -riH 'password\|passwd\|secret\|key\|token\|credential\|auth' /var/log/ 2>/dev/null
+  separator
+}
+
+function action_logs_users() {
+  header "login, user, session, authentication"
+  echo -e "${YELLOW}valid or failed user logins, which may show real usernames or attackers attempts${NC}"
+  grep -riH 'login\|user\|session\|authentication\|failed' /var/log/ 2>/dev/null
+  separator
+}
+
+function action_logs_execshells() {
+  header "shells / commands / reverse shells"
+  echo -e "${YELLOW}suspicious command execution or reverse shell attempts logged by monitoring tools${NC}"
+  grep -rH --color 'bash\|sh\|nc\|netcat\|perl\|python\|php\|powershell\|cmd\|/bin' /var/log/ 2>/dev/null
+  separator
+}
+
+function action_logs_errors() {
+  header "errors, failures, denied, unauthorized"
+  echo -e "${YELLOW}shows problems that may lead to privilege escalation or show misconfigured services${NC}"
+  grep -riH 'error\|fail\|denied\|unauthorized\|refused' /var/log/ 2>/dev/null
+  separator
+}
+
+function action_logs_weblogs() {
+  header "web server logs"
+  echo -e "${YELLOW}web server logs may contain sensitive information, such as credentials or tokens${NC}"
+  grep -ariH 'POST\|GET\|cmd\|eval\|system\|base64\|exec\|upload' /var/log/apache2/ /var/log/nginx/ 2>/dev/null
+  separator
+}
+
+function action_logs_sudosu() {
+  header "sudo / su attempts"
+  grep -rH 'sudo\|su\|root' /var/log/auth.log /var/log/secure 2>/dev/null
+  separator
+}
+
+function action_logs_ipurls() {
+  header "IPs, URLs, base64"
+  grep -ErohH '([0-9]{1,3}\.){3}[0-9]{1,3}|\b[a-zA-Z0-9+/]{20,}={0,2}\b|http[s]?://[^ ]+' /var/log/ 2>/dev/null
   separator
 }
 
@@ -977,17 +1077,18 @@ function script_info() {
   if [[ "$1" == "-h" ]]; then
     echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [action]\n"
     echo -e " ${BLUE}actions:${NC}"
-    echo -e "   ${YELLOW}system${NC}      \t OS, kernel, CPU, memory, disk, mounts, processes"
-    echo -e "   ${YELLOW}users${NC}       \t passwd, groups, sudoers, ssh keys"
-    echo -e "   ${YELLOW}cron${NC}        \t cron jobs, at jobs"
-    echo -e "   ${YELLOW}network${NC}     \t interfaces, routes, iptables, arp"
-    echo -e "   ${YELLOW}services${NC}    \t systemd, services"
-    echo -e "   ${YELLOW}kerberos${NC}    \t check is domain joined, env krb"
+    echo -e "   ${YELLOW}system${NC}        \t OS, kernel, CPU, memory, disk, mounts, processes"
+    echo -e "   ${YELLOW}users${NC}         \t passwd, groups, sudoers, ssh keys"
+    echo -e "   ${YELLOW}cron${NC}          \t cron jobs, at jobs"
+    echo -e "   ${YELLOW}network${NC}       \t interfaces, routes, iptables, arp"
+    echo -e "   ${YELLOW}services${NC}      \t systemd, services"
+    echo -e "   ${YELLOW}kerberos${NC}      \t check is domain joined, env krb"
+    echo -e "   ${YELLOW}isincontainer${NC} \t check if inside docker or lxc"
     echo -e "\n no action - run all"
     exit 1
   fi
 
-  local actions="system users cron network services kerberos"
+  local actions="system users cron network services kerberos isincontainer"
 
   # run separate action
   if [[ -n $1 ]]; then
@@ -1002,6 +1103,7 @@ function script_info() {
   action_network
   action_services
   action_kerberos
+  action_isincontainer
 }
 
 function script_files() {
@@ -1066,13 +1168,41 @@ function script_passwords() {
 }
 
 function script_logs() {
-    action_parse_logs
+  if [[ "$1" == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [action]\n"
+    echo -e " ${BLUE}actions:${NC}"
+    echo -e "   ${YELLOW}secrets${NC}           \t passwords, tokens, secrets"
+    echo -e "   ${YELLOW}users${NC}             \t login, user, session, authentication"
+    echo -e "   ${YELLOW}execshells${NC}        \t shells / commands / reverse shells"
+    echo -e "   ${YELLOW}errors${NC}            \t errors, failures, denied, unauthorized"
+    echo -e "   ${YELLOW}weblogs${NC}           \t web server logs"
+    echo -e "   ${YELLOW}sudosu${NC}            \t sudo / su attempts"
+    echo -e "   ${YELLOW}ipurls${NC}            \t IPs, URLs, base64"
+    echo -e "   ${YELLOW}tips${NC}              \t see logs also list"
+    echo -e "\n no action - run all"
+    exit 1
+  fi
+
+  local actions="secrets users execshells errors weblogs sudosu ipurls tips"
+
+  # run separate action
+  if [[ -n $1 ]]; then
+    eval "action_logs_${1}"
+    return $?
+  fi
+
+  action_logs_secrets
+  action_logs_users
+  action_logs_execshells
+  action_logs_errors
+  action_logs_weblogs
+  action_logs_sudosu
+  action_logs_ipurls
+  action_logs_tips
 }
 
 function script_installed_soft() {
-  tip "GTFObins https://gtfobins.github.io/"
   action_installed_packages
-  # TODO list installed binaries & check for GTFObins
 }
 
 function script_scan_local_networks() {
@@ -1524,38 +1654,38 @@ function help() {
     echo -e "${GREEN}usage:${NC} ${0} ${YELLOW}<script>${NC} [params]\n"
 
     echo -e " ${BLUE}gather info scripts:${NC}"
-    echo -e "   ${YELLOW}info${NC}          \t fast - prints users, netstat, etc..."
-    echo -e "   ${YELLOW}files${NC}         \t search db, sql, backup, scripts, config, SUID, GUID files"
-    echo -e "   ${YELLOW}passwords${NC}     \t search passwords, ssh keys, api keys, tokens in files (slow)"
-    echo -e "   ${YELLOW}logs${NC}          \t search interesting in logs"
-    echo -e "   ${YELLOW}searchw${NC}       \t search writable directories & files"
-    echo -e "   ${YELLOW}installedsoft${NC} \t list installed packages & soft"
-    echo -e "   ${YELLOW}gtfobins${NC}      \t check for installed GTFOBins"
+    echo -e "   ${YELLOW}info${NC}          [-h]         \t fast - prints users, netstat, etc..."
+    echo -e "   ${YELLOW}files${NC}         [-h]         \t search db, sql, backup, scripts, config, SUID, GUID files"
+    echo -e "   ${YELLOW}passwords${NC}                  \t search passwords, ssh keys, api keys, tokens in files (slow)"
+    echo -e "   ${YELLOW}logs${NC}          [-h]         \t search interesting in logs"
+    echo -e "   ${YELLOW}searchw${NC}                    \t search writable directories & files"
+    echo -e "   ${YELLOW}installedsoft${NC}              \t list installed packages & soft"
+    echo -e "   ${YELLOW}gtfobins${NC}                   \t check for installed GTFOBins"
 
     echo -e "\n ${BLUE}scaner scripts:${NC}"
-    echo -e "   ${YELLOW}networkscan${NC} [params]     \t scan internal network(s) for avail hosts"
-    echo -e "   ${YELLOW}ncscan${NC} [params]          \t simple TCP ports scanner using nc (preferable)"
-    echo -e "   ${YELLOW}bashscan${NC} [params]        \t simple TCP ports scanner using bash"
+    echo -e "   ${YELLOW}networkscan${NC}   [params]     \t scan internal network(s) for avail hosts"
+    echo -e "   ${YELLOW}ncscan${NC}        [params]     \t simple TCP ports scanner using nc (preferable)"
+    echo -e "   ${YELLOW}bashscan${NC}      [params]     \t simple TCP ports scanner using bash"
 
     echo -e "\n ${BLUE}transfer files scripts:${NC}"
-    echo -e "   ${YELLOW}sendf${NC} [params]           \t send file to remote server (http[s], smb, ftp)"
-    echo -e "   ${YELLOW}download${NC} [params]        \t download file (http[s], smb, ftp)"
+    echo -e "   ${YELLOW}sendf${NC}         [params]     \t send file to remote server (http[s], smb, ftp)"
+    echo -e "   ${YELLOW}download${NC}      [params]     \t download file (http[s], smb, ftp)"
 
     echo -e "\n ${BLUE}local server scripts:${NC}"
-    echo -e "   ${YELLOW}httpserver${NC} [params]      \t start http server"
-#    echo -e "   ${YELLOW}ftpserver${NC} [params]      \t start ftp server"
-#    echo -e "   ${YELLOW}smbserver${NC} [params]      \t start smb server"
+    echo -e "   ${YELLOW}httpserver${NC}    [params]     \t start http server"
+#    echo -e "   ${YELLOW}ftpserver${NC}    [params]     \t start ftp server"
+#    echo -e "   ${YELLOW}smbserver${NC}    [params]     \t start smb server"
 
     echo -e "\n ${BLUE}monitor scripts:${NC}"
-    echo -e "   ${YELLOW}fsmon${NC} [params]           \t monitoring FS changes"
+    echo -e "   ${YELLOW}fsmon${NC}         [params]     \t monitoring FS changes"
 
     echo -e "\n ${BLUE}bruteforce scripts:${NC}"
-    echo -e "   ${YELLOW}localuser${NC} [params]       \t bruteforce local user (using bash su -)"
+    echo -e "   ${YELLOW}localuser${NC}     [params]     \t bruteforce local user (using bash su -)"
 
     echo -e "\n ${BLUE}other:${NC}"
-    echo -e "   ${YELLOW}rexec${NC} [params]              \t execute remote bash|sh script"
-    echo -e "   ${YELLOW}sectooldetect${NC} [params]      \t detect security tools"
-    echo -e "   ${YELLOW}obfuscate${NC} [params]          \t obfuscate script"
+    echo -e "   ${YELLOW}rexec${NC}         [params]     \t execute remote bash|sh script"
+    echo -e "   ${YELLOW}sectooldetect${NC} [params]     \t detect security tools"
+    echo -e "   ${YELLOW}obfuscate${NC}     [params]     \t obfuscate script"
 
     echo -e "---\n\nhelp or -h: help & tips"
 }
@@ -1571,7 +1701,7 @@ case "$INNER_SCRIPT" in
   "files") script_files "$2" ;;
   "searchw") script_search_writable_dirs_files ;;
   "passwords") script_passwords ;;
-  "logs") script_logs ;;
+  "logs") script_logs "$2" ;;
   "installedsoft") script_installed_soft ;;
   "gtfobins") script_gtfobins ;;
   
