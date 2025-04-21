@@ -6,7 +6,7 @@
 
 ---
 
-### 📦 Usage
+### Usage
 
 ```bash
 ./linctf.sh <module> [params]
@@ -14,7 +14,7 @@
 
 ---
 
-### 🔍 Gather Information
+### Gather Information
 
 | Module          | Description                                                              |
 |-----------------|--------------------------------------------------------------------------|
@@ -28,7 +28,7 @@
 
 ---
 
-### 🔎 Ports & Network Scanners
+### Ports & Network Scanners
 
 | Module        | Description                                             |
 |---------------|---------------------------------------------------------|
@@ -38,7 +38,7 @@
 
 ---
 
-### 📤 File Transfer
+### File Transfer
 
 | Module     | Description                                                   |
 |------------|---------------------------------------------------------------|
@@ -47,7 +47,7 @@
 
 ---
 
-### 🖥️ Local Servers
+### Local Servers
 
 | Module      | Description                |
 |-------------|----------------------------|
@@ -55,7 +55,7 @@
 
 ---
 
-### 🛡️ Monitoring
+### Monitoring
 
 | Module  | Description                        |
 |---------|------------------------------------|
@@ -63,7 +63,7 @@
 
 ---
 
-### 🔐 Brute Force
+### Brute Force
 
 | Module     | Description                                      |
 |------------|--------------------------------------------------|
@@ -71,7 +71,7 @@
 
 ---
 
-### 🧰 Other Tools
+### Other Tools
 
 | Module         | Description                                    |
 |----------------|------------------------------------------------|
@@ -81,7 +81,7 @@
 
 ---
 
-### ❓ Help
+### Help
 run the script without parameters
 ```bash
 ./linctf.sh
