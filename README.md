@@ -73,11 +73,11 @@
 
 ### Other Tools
 
-| Module         | Description                                    |
-|----------------|------------------------------------------------|
-| `rexec`        | Execute a remote script via bash or sh         |
-| `sectooldetect`| Detect common security monitoring tools        |
-| `obfuscate`    | Obfuscate your shell scripts                   |
+| Module          | Description                             |
+|-----------------|-----------------------------------------|
+| `rexec`         | Execute a remote script via bash or sh  |
+| `sectooldetect` | Detect common security monitoring tools |
+| `minify`        | Minify script using gzip & base64       |
 
 ---
 

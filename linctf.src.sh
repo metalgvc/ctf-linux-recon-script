@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # metalgvc
-VERSION="1.0.2"
+VERSION="1.0.3"
 
 export HISTSIZE=0
 export HISTFILE=/dev/null
@@ -1585,7 +1585,7 @@ function script_fsmon() {
   action_fsmon "$1" $2
 }
 
-function script_obfuscate() {
+function script_minify() {
   if [[ "$1" == "-h" || -z $1 || ! -f $1 ]]; then
     echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <script path> [output script name]"
     exit 1
@@ -1685,12 +1685,12 @@ function help() {
     echo -e "\n ${BLUE}other:${NC}"
     echo -e "   ${YELLOW}rexec${NC}         [params]     \t execute remote bash|sh script"
     echo -e "   ${YELLOW}sectooldetect${NC} [params]     \t detect security tools"
-    echo -e "   ${YELLOW}obfuscate${NC}     [params]     \t obfuscate script"
+    echo -e "   ${YELLOW}minify${NC}     [params]        \t minify script using gzip & base64"
 
     echo -e "---\n\nhelp or -h: help & tips"
 }
 
-scripts="info files passwords logs searchw installedsoft gtfobins networkscan bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon obfuscate localuser sectooldetect help -h -v"
+scripts="info files passwords logs searchw installedsoft gtfobins networkscan bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon minify localuser sectooldetect help -h -v"
 if [[ -z "$1" || ! "$scripts" =~ (^|[[:space:]])"$1"($|[[:space:]]) ]]; then
   help
   exit 1
@@ -1720,7 +1720,7 @@ case "$INNER_SCRIPT" in
   "localuser") script_bruteforce_localuser "$2" "$3" ;;
 
   "sectooldetect") script_detect_security_tools ;;
-  "obfuscate") script_obfuscate "$2" "$3" ;;
+  "minify") script_minify "$2" "$3" ;;
   "-h"|"help") script_help ;;
   "-v") echo $VERSION ;;
 
