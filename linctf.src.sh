@@ -3,7 +3,7 @@
 export HISTSIZE=0
 export HISTFILE=/dev/null
 
-VERSION="1.0.5"
+VERSION="1.0.6"
 
 SCRIPT=$0
 INNER_SCRIPT=$1
@@ -25,17 +25,6 @@ function warn() { msg=$1; echo -e "${YELLOW}${msg}${NC}"; }
 
 # ======================================================================================================================
 # kerberos tickets
-
-function action_search_kerberos_files() {
-  header "search kerberos tickets"
-  tip "https://academy.hackthebox.com/module/147/section/1657"
-
-  find / -name '*keytab*' ! -name '*.py' ! -name '*.pyc' ! -name '*.so' ! -name '*.so.0' ! -name '*.rb' ! -name '*.md' -ls 2>/dev/null
-
-  header "possible kerberos tickets"
-  find / -name '*.kt' -ls 2>/dev/null
-  separator
-}
 
 function action_kerberos() {
   header "PS - Check if Linux Machine is Domain Joined"
@@ -441,11 +430,25 @@ function action_isincontainer() {
 # ======================================================================================================================
 # search files
 
+function action_search_kerberos_files() {
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
+  header "kerberos tickets; search in: ${searchpath}"
+  find "$searchpath" -name '*keytab*' ! -name '*.py' ! -name '*.pyc' ! -name '*.so' ! -name '*.so.0' ! -name '*.rb' ! -name '*.md' -ls 2>/dev/null
+
+  header "possible kerberos tickets; search in: ${searchpath}"
+  find "$searchpath" -name '*.kt' -ls 2>/dev/null
+  separator
+}
+
 function action_search_projectconfig_files() {
   local SEARCH_IN=("/var/www" "/home" "/opt")
+  if [[ -n $1 ]]; then SEARCH_IN=("$1"); fi
+
   local EXTS=(".php" ".py" ".rb" ".sh" ".go" ".js")
 
-  header "projects configs: ${EXTS[*]} IN ${SEARCH_IN[*]}"
+  header "projects configs: ${EXTS[*]}; search in: ${SEARCH_IN[*]}"
   for dir in "${SEARCH_IN[@]}"; do
     for ext in "${EXTS[@]}"; do
       find "$dir" -iname "*conf*${ext}" 2>/dev/null | grep -v -E '(/.local/)|(/lib/python)';
@@ -456,24 +459,30 @@ function action_search_projectconfig_files() {
 }
 
 function action_search_db_files() {
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
   local EXTS=(".sql" ".*db*" ".sqlite3")
 
-  header "db files & sql: ${EXTS[*]}"
+  header "db files & sql: ${EXTS[*]}; search in: ${searchpath}"
   for ext in "${EXTS[@]}"; do
     echo -e "\n${YELLOW}DB File extension: ${ext}${NC}";
-    find / -type f -name "*${ext}" 2>/dev/null | grep -v "doc\|lib\|headers\|share\|man";
+    find "$searchpath" -type f -name "*${ext}" 2>/dev/null | grep -v "doc\|lib\|headers\|share\|man";
   done
   separator
 }
 
 
 function action_search_backups_files() {
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
   local EXTS=(".bak" ".backup" "passwd*" "shadow*")
 
-  header "files: ${EXTS[*]}"
+  header "files: ${EXTS[*]}; search in: ${searchpath}"
   for ext in "${EXTS[@]}"; do
     #echo -e "\n${YELLOW}File extension: ${ext}${NC}";
-    find / -iname "*${ext}" 2>/dev/null | grep -v "doc\|lib\|headers\|share\|man" | grep -v -E '(/usr/bin/)|(/usr/sbin/)';
+    find "$searchpath" -iname "*${ext}" 2>/dev/null | grep -v "doc\|lib\|headers\|share\|man" | grep -v -E '(/usr/bin/)|(/usr/sbin/)';
   done
   separator
 }
@@ -481,9 +490,11 @@ function action_search_backups_files() {
 
 function action_search_script_files() {
   local SEARCH_IN=("/var/www" "/home" "/opt")
+  if [[ -n $1 ]]; then SEARCH_IN=("$1"); fi
+
   local EXTS=(".py" ".pyc" ".pl" ".go" ".jar" ".sh" ".php" ".rb" ".js")
 
-  header "script files: ${EXTS[*]} IN ${SEARCH_IN[*]}"
+  header "script files: ${EXTS[*]}; search in: ${SEARCH_IN[*]}"
   for dir in "${SEARCH_IN[@]}"; do
     #echo -e "\n${YELLOW}Search in: ${dir}${NC}";
     for ext in "${EXTS[@]}"; do
@@ -495,98 +506,141 @@ function action_search_script_files() {
 
 
 function action_search_sysconfigs_files() {
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
   local EXTS=(".conf" ".config" ".cnf" ".cf")
 
-  header "FILES: ${EXTS[*]}"
+  header "FILES: ${EXTS[*]}; search in: ${searchpath}"
   for ext in "${EXTS[@]}"; do
     echo -e "\n${YELLOW}File extension: ${ext}${NC}";
-    find / -iname "*${ext}" 2>/dev/null | grep -v "lib\|fonts\|share\|core\|headers\|.oh-my-zsh";
+    find "$searchpath" -iname "*${ext}" 2>/dev/null | grep -v "lib\|fonts\|share\|core\|headers\|.oh-my-zsh";
   done
   separator
 }
 
 function action_search_docs_files() {
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
   local EXTS=(".xls*" ".xltx" ".csv" ".od*" ".doc*" ".pdf" ".pot*" ".pp*")
 
-  header "FILES: ${EXTS[*]}"
+  header "FILES: ${EXTS[*]}; search in: ${searchpath}"
   for ext in "${EXTS[@]}"; do
     echo -e "\n${YELLOW}File extension: ${ext}${NC}";
-    find / -iname "*${ext}" 2>/dev/null | grep -v "lib\|fonts\|share\|core";
+    find "$searchpath" -iname "*${ext}" 2>/dev/null | grep -v "lib\|fonts\|share\|core";
   done
   separator
 }
 
 function action_search_archives_files() {
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
   local EXTS=(".zip" ".rar" ".7z")
 
-  header "FILES: ${EXTS[*]}"
+  header "FILES: ${EXTS[*]}; search in: ${searchpath}"
   for ext in "${EXTS[@]}"; do
     echo -e "\n${YELLOW}File extension: ${ext}${NC}";
-    find / -iname "*${ext}" 2>/dev/null | grep -v "lib\|fonts\|share\|core";
+    find "$searchpath" -iname "*${ext}" 2>/dev/null | grep -v "lib\|fonts\|share\|core";
   done
   separator
 }
 
 function action_search_credskeys_files() {
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
   local EXTS=("id_rsa" "id_ed25519" ".htpasswd" ".pem" ".p12" ".pfx" ".crt" ".cer" ".key" ".pub" ".asc" ".gpg")
 
-  header "FILES: ${EXTS[*]}"
+  header "FILES: ${EXTS[*]}; search in: ${searchpath}"
   for ext in "${EXTS[@]}"; do
     echo -e "\n${YELLOW}File extension: ${ext}${NC}";
-    find / \( -path "/snap" -o -path "*/.cargo/*" -o -path "*/.pyenv/*" -o -path "*/node_modules/*" \) -prune -o -type f -iname "*${ext}" -print 2>/dev/null
+    find "$searchpath" \( -path "/snap" -o -path "*/.cargo/*" -o -path "*/.pyenv/*" -o -path "*/node_modules/*" \) -prune -o -type f -iname "*${ext}" -print 2>/dev/null
   done
   separator
 }
 
 function action_search_env_files() {
-  header ".env, .hashes, .credentials files"
-  find / -name "*.env" -o -name "*.hashes" -o -name "*.credentials" 2>/dev/null;
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
+  header "FILES: *.env, *.hashes, *.credentials; search in: ${searchpath}"
+  find "$searchpath" -name "*.env" -o -name "*.hashes" -o -name "*.credentials" 2>/dev/null
   separator
 }
 
 function action_search_history_files() {
-  header "history files"
-  find / -type f -name "*.*history" -exec ls -la {} \; 2> /dev/null
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
+  header "history files; search in: ${searchpath}"
+  find "$searchpath" -type f -name "*.*history" -exec ls -la {} \; 2> /dev/null
   separator
 }
 
 function action_search_large_files() {
-    header "large files +100M (largest 50)"
-    find / -type f -size +100M -exec ls -s '{}' \; 2>/dev/null | sort -n -r | head -n 50
-    separator
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
+  header "large files +100M (largest 50); search in: ${searchpath}"
+  find "$searchpath" -type f -size +100M -exec ls -s '{}' \; 2>/dev/null | sort -n -r | head -n 50
+  separator
 }
 
 function action_search_recent_files() {
-  header "recent modified files < 5min"
-  find / \( -path "/proc" -o -path "/sys" -o -path "/run" \) -prune -o -type f -mmin -5 -print 2>/dev/null
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
+  header "recent modified files < 5min; search in: ${searchpath}"
+  find "$searchpath" \( -path "/proc" -o -path "/sys" -o -path "/run" \) -prune -o -type f -mmin -5 -print 2>/dev/null
   separator
 }
 
 function action_search_suid_files() {
-  header "SUID files"
-  find / -perm -u=s -type f 2>/dev/null
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
 
-  header "GUID files"
-  find / -perm -g=s -type f 2>/dev/null
+  header "SUID files; search in: ${searchpath}"
+  find "$searchpath" -perm -u=s -type f 2>/dev/null
+
+  header "GUID files; search in: ${searchpath}"
+  find "$searchpath" -perm -g=s -type f 2>/dev/null
   separator
 }
 
 function action_search_acl_files() {
-  header "search ACL files"
-  find / -path '/proc' -prune -o -exec ls -ld {} + 2>/dev/null | awk '$1 ~ /\+$/ {print $1, $NF}'
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
+  header "search ACL files; search in: ${searchpath}"
+  find "$searchpath" -path '/proc' -prune -o -exec ls -ld {} + 2>/dev/null | awk '$1 ~ /\+$/ {print $1, $NF}'
   separator
 }
 
-function action_search_vimrc_files() {
-    header ".vimrc files"
-    find /home -type f -name ".vimrc" 2> /dev/null
-    separator
+function action_search_vim_files() {
+  local searchpath="/home"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
+  header "FILES: .sw? .viminfo .vimrc .bak init.vim; search in: ${searchpath}"
+  find "$searchpath" -type f \( \
+    -name ".*.sw?" -o \
+    -name ".viminfo" -o \
+    -name "*~" -o \
+    -name "*.bak" -o \
+    -name ".vimrc" -o \
+    -name "init.vim" \
+  \) 2>/dev/null
+
+  separator
 }
 
 function action_search_usernotes_files() {
-  header "user notes"
+  local searchpath="/home"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
 
-  find /home \
+  header "user notes; search in: ${searchpath}"
+  find "$searchpath" \
     \( -path "*/.mozilla/*" -o -path "*/.oh-my-zsh/*" -o -path "*/.local/*" \
        -o -path "*/.BurpSuite/*" -o -path "*/.git/*" -o -path "*/LICENSE" \
        -o -path "*/lib/*" -o -path "*/.npm/*" -o -path "*/.config/*" \
@@ -602,40 +656,49 @@ function action_search_usernotes_files() {
 }
 
 function action_search_dockerfile_files() {
-  header "Dockerfile files"
-  find / \( -path "/proc" -o -path "/sys" -o -path "/run" \) -prune -o -type f -name "Dockerfile" -print 2>/dev/null
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+
+  header "Dockerfile files; search in: ${searchpath}"
+  find "$searchpath" \( -path "/proc" -o -path "/sys" -o -path "/run" \) -prune -o -type f -name "Dockerfile" -print 2>/dev/null
+  separator
 }
 
 # ======================================================================================================================
 # search writable dirs & files
 
 function action_search_writable_dirs() {
-  header "writable dirs for all"
-  find / -path /proc -prune -o -type d -perm -o+w 2>/dev/null
-  separator
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
 
-  header "writable dirs for current user [${USER}] out of home dir"
-  find / -path "$HOME" -prune -o -path /proc -prune -o -type d -writable -print 2>/dev/null
+  header "writable dirs for all; search in: ${searchpath}"
+  find "$searchpath" -path /proc -prune -o -type d -perm -o+w 2>/dev/null
+
+  header "writable dirs for current user [${USER}]; search in: ${searchpath} EXCEPT: ${HOME}"
+  find "$searchpath" -path "$HOME" -prune -o -path /proc -prune -o -type d -writable -print 2>/dev/null
   separator
 }
 
 function action_search_writable_files() {
-  header "writable files for all"
-  find / -path /proc -prune -o -type f -perm -o+w 2>/dev/null
-  separator
+  local searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
 
-  header "writable files for current user [${USER}] out of home dir"
-  find / -path "$HOME" -prune -o -path /proc -prune -o -type f -writable -print 2>/dev/null
+  header "writable files for all; search in: ${searchpath}"
+  find "$searchpath" -path /proc -prune -o -type f -perm -o+w 2>/dev/null
+
+  header "writable files for current user [${USER}]; search in: ${searchpath} EXCEPT: ${HOME}"
+  find "$searchpath" -path "$HOME" -prune -o -path /proc -prune -o -type f -writable -print 2>/dev/null
   separator
 }
 
 # ======================================================================================================================
 # search in files
 
-function action_search_passwords() {
+function action_passwords_secrets() {
   local SEARCH_IN=("/var" "/home" "/opt" "/etc")
+  if [[ -n $1 ]]; then SEARCH_IN=("$1"); fi
 
-  header "passwords, api keys, tokens"
+  header "passwords, api keys, tokens; search in: ${SEARCH_IN[*]}"
   for dir in "${SEARCH_IN[@]}"; do
     echo -e "${YELLOW}- search in: ${dir} --------------------${NC}"
     find "$dir" \( \
@@ -649,10 +712,11 @@ function action_search_passwords() {
   separator
 }
 
-function action_ssh_pgp_keys() {
+function action_passwords_sshpgpkeys() {
   local SEARCH_IN=("/var" "/home" "/opt" "/etc")
+  if [[ -n $1 ]]; then SEARCH_IN=("$1"); fi
 
-  header "ssh, pgp keys"
+  header "ssh, pgp keys; search in: ${SEARCH_IN[*]}"
   for dir in "${SEARCH_IN[@]}"; do
     echo -e "${YELLOW}- search in: ${dir} --------------------${NC}"
     find "$dir" -type f -exec grep -H -- "-----BEGIN" {} \; 2>/dev/null
@@ -660,21 +724,23 @@ function action_ssh_pgp_keys() {
   separator
 }
 
-function action_ssh_keys() {
-  header "SSH private keys"
-  grep -rnw "PRIVATE KEY" /home/* 2>/dev/null | grep ":1" | cut -d: -f1 | sort -u
-  separator
+function action_passwords_sshkeys() {
+  local searchpath="/home/*"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
 
-  header "SSH public keys"
-  grep -rnw "ssh-rsa" /home/* 2>/dev/null | grep ":1" | cut -d: -f1 | sort -u
-  separator
+  header "SSH private keys; search in: ${searchpath}"
+  grep -rnw "PRIVATE KEY" "$searchpath" 2>/dev/null | grep ":1" | cut -d: -f1 | sort -u
 
-  header "SSH known_hosts"
-  find / -name known_hosts -print -exec cat {} \; 2>/dev/null
-  separator
+  header "SSH public keys; search in: ${searchpath}"
+  grep -rnw "ssh-rsa" "$searchpath" 2>/dev/null | grep ":1" | cut -d: -f1 | sort -u
 
-  header "SSH authorized_keys"
-  find / -name authorized_keys -print -exec cat {} \; 2>/dev/null
+  header "SSH known_hosts; search in: ${searchpath}"
+  searchpath="/"
+  if [[ -n $1 ]]; then searchpath="$1"; fi
+  find "$searchpath" -name known_hosts -print -exec cat {} \; 2>/dev/null
+
+  header "SSH authorized_keys; search in: ${searchpath}"
+  find "$searchpath" -name authorized_keys -print -exec cat {} \; 2>/dev/null
   separator
 }
 
@@ -1116,67 +1182,98 @@ function script_info() {
 
 function script_files() {
   if [[ "$1" == "-h" ]]; then
-    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [action]\n"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [<action>|all] [path]\n"
     echo -e " ${BLUE}actions:${NC}"
-    echo -e "   ${YELLOW}credskeys${NC}     \t .htpasswd, id_rsa, .key, .pem, .crt, ..."
-    echo -e "   ${YELLOW}env${NC}           \t .env, .hashes, .credentials files"
-    echo -e "   ${YELLOW}history${NC}       \t history files"
-    echo -e "   ${YELLOW}kerberos${NC}      \t kerberos tickets"
-    echo -e "   ${YELLOW}usernotes${NC}     \t try to find user notes text files"
-    echo -e "   ${YELLOW}projectconfig${NC} \t project configs (*config* *setting* for .php .py .rb .sh .go .js)"
-    echo -e "   ${YELLOW}db${NC}            \t db files & sql (.sql .db .sqlite3)"
-    echo -e "   ${YELLOW}dockerfile${NC}    \t Dockerfile files"
-    echo -e "   ${YELLOW}backups${NC}       \t backup files (.bak .backup passwd* shadow*)"
-    echo -e "   ${YELLOW}script${NC}        \t script files"
-    echo -e "   ${YELLOW}sysconfigs${NC}    \t .conf .config .cnf .cf"
-    echo -e "   ${YELLOW}docs${NC}          \t .xls .xls* .xltx .csv .od* .doc .doc* .pdf .pot .pot* .pp*"
-    echo -e "   ${YELLOW}archives${NC}      \t archives files (.zip .rar .7z)"
-    echo -e "   ${YELLOW}large${NC}         \t large files +100M (largest 50)"
-    echo -e "   ${YELLOW}recent${NC}        \t recent modified files < 5min"
-    echo -e "   ${YELLOW}suid${NC}          \t SUID & GUID files"
-    echo -e "   ${YELLOW}acl${NC}           \t ACL files"
-    echo -e "   ${YELLOW}vimrc${NC}         \t .vimrc files"
+    echo -e "   ${YELLOW}credskeys${NC}     [path] \t .htpasswd, id_rsa, .key, .pem, .crt, ..."
+    echo -e "   ${YELLOW}env${NC}           [path] \t .env, .hashes, .credentials files"
+    echo -e "   ${YELLOW}history${NC}       [path] \t history files"
+    echo -e "   ${YELLOW}kerberos${NC}      [path] \t kerberos tickets"
+    echo -e "   ${YELLOW}usernotes${NC}     [path] \t try to find user notes text files"
+    echo -e "   ${YELLOW}projectconfig${NC} [path] \t project configs (*config* *setting* for .php .py .rb .sh .go .js)"
+    echo -e "   ${YELLOW}db${NC}            [path] \t db files & sql (.sql .db .sqlite3)"
+    echo -e "   ${YELLOW}dockerfile${NC}    [path] \t Dockerfile files"
+    echo -e "   ${YELLOW}backups${NC}       [path] \t backup files (.bak .backup passwd* shadow*)"
+    echo -e "   ${YELLOW}script${NC}        [path] \t script files"
+    echo -e "   ${YELLOW}sysconfigs${NC}    [path] \t .conf .config .cnf .cf"
+    echo -e "   ${YELLOW}docs${NC}          [path] \t .xls .xls* .xltx .csv .od* .doc .doc* .pdf .pot .pot* .pp*"
+    echo -e "   ${YELLOW}archives${NC}      [path] \t archives files (.zip .rar .7z)"
+    echo -e "   ${YELLOW}large${NC}         [path] \t large files +100M (largest 50)"
+    echo -e "   ${YELLOW}recent${NC}        [path] \t recent modified files < 5min"
+    echo -e "   ${YELLOW}suid${NC}          [path] \t SUID & GUID files"
+    echo -e "   ${YELLOW}acl${NC}           [path] \t ACL files"
+    echo -e "   ${YELLOW}vim${NC}           [path] \t .vim related sensitive files"
     echo -e "\n no action - run all"
     exit 1
   fi
 
-  local actions="credskeys env history kerberos usernotes projectconfig db dockerfile backups script sysconfigs docs archives large recent suid acl vimrc"
+  local actions="credskeys env history kerberos usernotes projectconfig db dockerfile backups script sysconfigs docs archives large recent suid acl vim"
 
   # run separate action
-  if [[ -n $1 ]]; then
-    eval "action_search_${1}_files"
+  if [[ -n $1 && "$1" != "all" ]]; then
+    eval "action_search_${1}_files \"${2}\""
     return $?
   fi
 
-  action_search_credskeys_files
-  action_search_env_files
-  action_search_history_files
-  action_search_kerberos_files
-  action_search_usernotes_files
-  action_search_projectconfig_files
-  action_search_db_files
-  action_search_dockerfile_files
-  action_search_backups_files
-  action_search_script_files
-  action_search_sysconfigs_files
-  action_search_docs_files
-  action_search_archives_files
-  action_search_large_files
-  action_search_recent_files
-  action_search_suid_files
-  action_search_acl_files
-  action_search_vimrc_files
+  action_search_credskeys_files "$2"
+  action_search_env_files "$2"
+  action_search_history_files "$2"
+  action_search_kerberos_files "$2"
+  action_search_usernotes_files "$2"
+  action_search_projectconfig_files "$2"
+  action_search_db_files "$2"
+  action_search_dockerfile_files "$2"
+  action_search_backups_files "$2"
+  action_search_script_files "$2"
+  action_search_sysconfigs_files "$2"
+  action_search_docs_files "$2"
+  action_search_archives_files "$2"
+  action_search_large_files "$2"
+  action_search_recent_files "$2"
+  action_search_suid_files "$2"
+  action_search_acl_files "$2"
+  action_search_vim_files "$2"
 }
 
 function script_search_writable_dirs_files() {
-    action_search_writable_dirs
-    action_search_writable_files
+  if [[ "$1" == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [<action>|all] [path]\n"
+    echo -e " ${BLUE}actions:${NC}"
+    echo -e "   ${YELLOW}dirs${NC}  [path]     \t search writable dirs"
+    echo -e "   ${YELLOW}files${NC} [path]     \t search writable files"
+    exit 1
+  fi
+
+  if [[ -n $1 && "$1" != "all" ]]; then
+    eval "action_passwords_${1} \"${2}\""
+    return $?
+  fi
+
+  action_search_writable_dirs "$2"
+  action_search_writable_files "$2"
 }
 
 function script_passwords() {
-  action_ssh_keys
-  action_search_passwords
-  action_ssh_pgp_keys
+  if [[ "$1" == "-h" ]]; then
+    echo -e "search for passwords, tokens, secrets in files\n"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [<action>|all] [path]\n"
+    echo -e " ${BLUE}actions:${NC}"
+    echo -e "   ${YELLOW}sshkeys${NC}    [path]     \t ssh private keys"
+    echo -e "   ${YELLOW}sshpgpkeys${NC} [path]     \t ssh, pgp keys"
+    echo -e "   ${YELLOW}secrets${NC}    [path]     \t passwords, api tokens, secrets"
+    exit 1
+  fi
+
+  local actions="sshkeys sshpgpkeys secrets"
+
+  # run separate action
+  if [[ -n $1 && "$1" != "all" ]]; then
+    eval "action_passwords_${1} \"${2}\""
+    return $?
+  fi
+
+  action_passwords_sshkeys "$2"
+  action_passwords_sshpgpkeys "$2"
+  action_passwords_secrets "$2"
 }
 
 function script_logs() {
@@ -1666,7 +1763,7 @@ function help() {
     echo -e " ${BLUE}gather info scripts:${NC}"
     echo -e "   ${YELLOW}info${NC}          [-h]         \t fast - prints users, netstat, etc..."
     echo -e "   ${YELLOW}files${NC}         [-h]         \t search db, sql, backup, scripts, config, SUID, GUID files"
-    echo -e "   ${YELLOW}passwords${NC}                  \t search passwords, ssh keys, api keys, tokens in files (slow)"
+    echo -e "   ${YELLOW}passwords${NC}     [-h]         \t search passwords, ssh keys, api keys, tokens in files (slow)"
     echo -e "   ${YELLOW}logs${NC}          [-h]         \t search interesting in logs"
     echo -e "   ${YELLOW}searchw${NC}                    \t search writable directories & files"
     echo -e "   ${YELLOW}installedsoft${NC}              \t list installed packages & soft"
@@ -1708,9 +1805,9 @@ fi
 
 case "$INNER_SCRIPT" in
   "info") script_info "$2" ;;
-  "files") script_files "$2" ;;
-  "searchw") script_search_writable_dirs_files ;;
-  "passwords") script_passwords ;;
+  "files") script_files "$2" "$3" ;;
+  "searchw") script_search_writable_dirs_files "$2" "$3" ;;
+  "passwords") script_passwords "$2" "$3" ;;
   "logs") script_logs "$2" ;;
   "installedsoft") script_installed_soft ;;
   "gtfobins") script_gtfobins ;;
