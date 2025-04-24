@@ -3,10 +3,14 @@
 export HISTSIZE=0
 export HISTFILE=/dev/null
 
-VERSION="1.0.6"
+VERSION="1.0.7"
 
 SCRIPT=$0
 INNER_SCRIPT=$1
+
+if [[ "$SCRIPT" == "bash" ]]; then
+  SCRIPT="linctf.sh"
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -1758,7 +1762,7 @@ function script_help() {
 }
 
 function help() {
-    echo -e "${GREEN}usage:${NC} ${0} ${YELLOW}<script>${NC} [params]\n"
+    echo -e "${GREEN}usage:${NC} ${SCRIPT} ${YELLOW}<script>${NC} [params]\n"
 
     echo -e " ${BLUE}gather info scripts:${NC}"
     echo -e "   ${YELLOW}info${NC}          [-h]         \t fast - prints users, netstat, etc..."
