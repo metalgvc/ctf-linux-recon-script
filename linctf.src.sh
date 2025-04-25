@@ -3,7 +3,7 @@
 export HISTSIZE=0
 export HISTFILE=/dev/null
 
-VERSION="1.0.8"
+VERSION="1.0.9"
 
 SCRIPT=$0
 INNER_SCRIPT=$1
@@ -1230,7 +1230,7 @@ function script_search_writable_dirs_files() {
   local actions="dirs files"
 
   if [[ -n $1 && "$1" != "all" ]]; then
-    eval "action_passwords_${1} \"${2}\""
+    eval "action_search_writable_${1} \"${2}\""
     return $?
   else
     for action in $actions; do
@@ -1747,7 +1747,7 @@ function help() {
     echo -e "   ${YELLOW}files${NC}         [-h]         \t search db, sql, backup, scripts, config, SUID, GUID files"
     echo -e "   ${YELLOW}passwords${NC}     [-h]         \t search passwords, ssh keys, api keys, tokens in files (slow)"
     echo -e "   ${YELLOW}logs${NC}          [-h]         \t search interesting in logs"
-    echo -e "   ${YELLOW}searchw${NC}                    \t search writable directories & files"
+    echo -e "   ${YELLOW}searchw${NC}       [-h]         \t search writable directories & files"
     echo -e "   ${YELLOW}installedsoft${NC}              \t list installed packages & soft"
     echo -e "   ${YELLOW}gtfobins${NC}                   \t check for installed GTFOBins"
 
