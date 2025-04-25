@@ -3,7 +3,7 @@
 export HISTSIZE=0
 export HISTFILE=/dev/null
 
-VERSION="1.0.7"
+VERSION="1.0.8"
 
 SCRIPT=$0
 INNER_SCRIPT=$1
@@ -601,15 +601,15 @@ function action_search_recent_files() {
   separator
 }
 
-function action_search_suid_files() {
+function action_search_sguid_files() {
   local searchpath="/"
   if [[ -n $1 ]]; then searchpath="$1"; fi
 
   header "SUID files; search in: ${searchpath}"
-  find "$searchpath" -perm -u=s -type f 2>/dev/null
+  find "$searchpath" \( -path /sys -o -path /proc \) -prune -o -type f -perm -u=s -ls 2>/dev/null
 
   header "GUID files; search in: ${searchpath}"
-  find "$searchpath" -perm -g=s -type f 2>/dev/null
+  find "$searchpath" \( -path /sys -o -path /proc \) -prune -o -type f -perm -g=s -ls 2>/dev/null
   separator
 }
 
@@ -729,7 +729,7 @@ function action_passwords_sshpgpkeys() {
 }
 
 function action_passwords_sshkeys() {
-  local searchpath="/home/*"
+  local searchpath="/home"
   if [[ -n $1 ]]; then searchpath="$1"; fi
 
   header "SSH private keys; search in: ${searchpath}"
@@ -1153,7 +1153,7 @@ function action_fsmon() {
 function script_info() {
 
   if [[ "$1" == "-h" ]]; then
-    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [action]\n"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [<action>|all]\n"
     echo -e " ${BLUE}actions:${NC}"
     echo -e "   ${YELLOW}system${NC}        \t OS, kernel, CPU, memory, disk, mounts, processes"
     echo -e "   ${YELLOW}users${NC}         \t passwd, groups, sudoers, ssh keys"
@@ -1169,19 +1169,14 @@ function script_info() {
   local actions="system users cron network services kerberos isincontainer"
 
   # run separate action
-  if [[ -n $1 ]]; then
+  if [[ -n $1 && "$1" != 'all' ]]; then
     eval "action_$1"
     return $?
+  else
+    for action in $actions; do
+      eval "action_${action}"
+    done
   fi
-
-  # else run all
-  action_system
-  action_users
-  action_cron
-  action_network
-  action_services
-  action_kerberos
-  action_isincontainer
 }
 
 function script_files() {
@@ -1203,39 +1198,24 @@ function script_files() {
     echo -e "   ${YELLOW}archives${NC}      [path] \t archives files (.zip .rar .7z)"
     echo -e "   ${YELLOW}large${NC}         [path] \t large files +100M (largest 50)"
     echo -e "   ${YELLOW}recent${NC}        [path] \t recent modified files < 5min"
-    echo -e "   ${YELLOW}suid${NC}          [path] \t SUID & GUID files"
+    echo -e "   ${YELLOW}sguid${NC}         [path] \t SUID & GUID files"
     echo -e "   ${YELLOW}acl${NC}           [path] \t ACL files"
     echo -e "   ${YELLOW}vim${NC}           [path] \t .vim related sensitive files"
     echo -e "\n no action - run all"
     exit 1
   fi
 
-  local actions="credskeys env history kerberos usernotes projectconfig db dockerfile backups script sysconfigs docs archives large recent suid acl vim"
+  local actions="credskeys env history kerberos usernotes projectconfig db dockerfile backups script sysconfigs docs archives large recent sguid acl vim"
 
   # run separate action
   if [[ -n $1 && "$1" != "all" ]]; then
     eval "action_search_${1}_files \"${2}\""
     return $?
+  else
+    for action in $actions; do
+      eval "action_search_${action}_files \"${2}\""
+    done
   fi
-
-  action_search_credskeys_files "$2"
-  action_search_env_files "$2"
-  action_search_history_files "$2"
-  action_search_kerberos_files "$2"
-  action_search_usernotes_files "$2"
-  action_search_projectconfig_files "$2"
-  action_search_db_files "$2"
-  action_search_dockerfile_files "$2"
-  action_search_backups_files "$2"
-  action_search_script_files "$2"
-  action_search_sysconfigs_files "$2"
-  action_search_docs_files "$2"
-  action_search_archives_files "$2"
-  action_search_large_files "$2"
-  action_search_recent_files "$2"
-  action_search_suid_files "$2"
-  action_search_acl_files "$2"
-  action_search_vim_files "$2"
 }
 
 function script_search_writable_dirs_files() {
@@ -1247,13 +1227,16 @@ function script_search_writable_dirs_files() {
     exit 1
   fi
 
+  local actions="dirs files"
+
   if [[ -n $1 && "$1" != "all" ]]; then
     eval "action_passwords_${1} \"${2}\""
     return $?
+  else
+    for action in $actions; do
+      eval "action_search_writable_${action} \"${2}\""
+    done
   fi
-
-  action_search_writable_dirs "$2"
-  action_search_writable_files "$2"
 }
 
 function script_passwords() {
@@ -1273,16 +1256,16 @@ function script_passwords() {
   if [[ -n $1 && "$1" != "all" ]]; then
     eval "action_passwords_${1} \"${2}\""
     return $?
+  else
+    for action in $actions; do
+      eval "action_passwords_${action} \"${2}\""
+    done
   fi
-
-  action_passwords_sshkeys "$2"
-  action_passwords_sshpgpkeys "$2"
-  action_passwords_secrets "$2"
 }
 
 function script_logs() {
   if [[ "$1" == "-h" ]]; then
-    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [action]\n"
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [<action>|all]\n"
     echo -e " ${BLUE}actions:${NC}"
     echo -e "   ${YELLOW}secrets${NC}           \t passwords, tokens, secrets"
     echo -e "   ${YELLOW}users${NC}             \t login, user, session, authentication"
@@ -1299,19 +1282,14 @@ function script_logs() {
   local actions="secrets users execshells errors weblogs sudosu ipurls tips"
 
   # run separate action
-  if [[ -n $1 ]]; then
+  if [[ -n $1 && "$1" != 'all' ]]; then
     eval "action_logs_${1}"
     return $?
+  else
+    for action in $actions; do
+      eval "action_logs_${action}"
+    done
   fi
-
-  action_logs_secrets
-  action_logs_users
-  action_logs_execshells
-  action_logs_errors
-  action_logs_weblogs
-  action_logs_sudosu
-  action_logs_ipurls
-  action_logs_tips
 }
 
 function script_installed_soft() {
