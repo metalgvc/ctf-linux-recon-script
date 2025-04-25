@@ -3,7 +3,7 @@
 export HISTSIZE=0
 export HISTFILE=/dev/null
 
-VERSION="1.0.9"
+VERSION="1.0.10"
 
 SCRIPT=$0
 INNER_SCRIPT=$1
@@ -1384,6 +1384,23 @@ function script_gtfobins() {
   done
 }
 
+function script_capabilities() {
+  header "search binaries with capabilities"
+
+  local SEARCH_IN=("/usr/bin" "/usr/sbin" "/usr/local/bin" "/usr/local/sbin" "/bin" "/sbin" "/opt")
+  local PATH_DIRS
+
+  IFS=':' read -ra PATH_DIRS <<< "$PATH"
+  local SEARCH_IN=("${SEARCH_IN[@]}" "${PATH_DIRS[@]}")
+  local SEARCH_IN=($(printf "%s\n" "${SEARCH_IN[@]}" | sort -u))
+
+  for dir in "${SEARCH_IN[@]}"; do
+    if [[ -d "$dir" ]]; then
+      find "$dir" -type f -exec getcap {} + 2>/dev/null
+    fi
+  done
+}
+
 function script_ports_scanner() {
   if [[ -z $1 ]]; then
     echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <IP> [start port - 1] [end port - 65535]"
@@ -1750,6 +1767,7 @@ function help() {
     echo -e "   ${YELLOW}searchw${NC}       [-h]         \t search writable directories & files"
     echo -e "   ${YELLOW}installedsoft${NC}              \t list installed packages & soft"
     echo -e "   ${YELLOW}gtfobins${NC}                   \t check for installed GTFOBins"
+    echo -e "   ${YELLOW}capabilities${NC}               \t enum existing capabilities for binaries"
 
     echo -e "\n ${BLUE}scaner scripts:${NC}"
     echo -e "   ${YELLOW}networkscan${NC}   [params]     \t scan internal network(s) for avail hosts"
@@ -1779,7 +1797,7 @@ function help() {
     echo -e "---\n\nhelp or -h: help & tips"
 }
 
-scripts="info files passwords logs searchw installedsoft gtfobins networkscan bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon minify localuser sectooldetect help -h -v"
+scripts="info files passwords logs searchw installedsoft gtfobins capabilities networkscan bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon minify localuser sectooldetect help -h -v"
 if [[ -z "$1" || ! "$scripts" =~ (^|[[:space:]])"$1"($|[[:space:]]) ]]; then
   help
   exit 1
@@ -1793,6 +1811,7 @@ case "$INNER_SCRIPT" in
   "logs") script_logs "$2" ;;
   "installedsoft") script_installed_soft ;;
   "gtfobins") script_gtfobins ;;
+  "capabilities") script_capabilities ;;
   
   "networkscan") script_scan_local_networks "$2" "$3" "$4" "$5" ;;
   "bashscan") script_ports_scanner "$2" "$3" "$4" "$5" ;;
