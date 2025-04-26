@@ -3,7 +3,7 @@
 export HISTSIZE=0
 export HISTFILE=/dev/null
 
-VERSION="1.0.10"
+VERSION="1.0.11"
 
 SCRIPT=$0
 INNER_SCRIPT=$1
@@ -181,6 +181,11 @@ function action_cron() {
   ls -la /var/spool/
   separator
 
+  if [[ -d /var/spool/cron ]]; then
+    header "ls -la /var/spool/cron"
+    ls -la /var/spool/cron
+  fi
+
   if which atq &> /dev/null; then
     header "atq"
     atq
@@ -275,6 +280,12 @@ function action_network() {
     header "iptables -L --line-numbers -v"
     iptables -L --line-numbers -v
   fi
+}
+
+function action_showmount() {
+    header "mounted NFS: showmount -e 127.0.0.1"
+    showmount -e 127.0.0.1 2>/dev/null
+    separator
 }
 
 # ======================================================================================================================
@@ -1159,6 +1170,7 @@ function script_info() {
     echo -e "   ${YELLOW}users${NC}         \t passwd, groups, sudoers, ssh keys"
     echo -e "   ${YELLOW}cron${NC}          \t cron jobs, at jobs"
     echo -e "   ${YELLOW}network${NC}       \t interfaces, routes, iptables, arp"
+    echo -e "   ${YELLOW}showmount${NC}     \t mounted NFS"
     echo -e "   ${YELLOW}services${NC}      \t systemd, services"
     echo -e "   ${YELLOW}kerberos${NC}      \t check is domain joined, env krb"
     echo -e "   ${YELLOW}isincontainer${NC} \t check if inside docker or lxc"
@@ -1166,7 +1178,7 @@ function script_info() {
     exit 1
   fi
 
-  local actions="system users cron network services kerberos isincontainer"
+  local actions="system users cron network services kerberos isincontainer showmount"
 
   # run separate action
   if [[ -n $1 && "$1" != 'all' ]]; then
