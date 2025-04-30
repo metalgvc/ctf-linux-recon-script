@@ -3,7 +3,7 @@
 export HISTSIZE=0
 export HISTFILE=/dev/null
 
-VERSION="1.0.11"
+VERSION="1.0.12"
 
 SCRIPT=$0
 INNER_SCRIPT=$1
@@ -351,12 +351,39 @@ function action_system() {
   df -h -T
   separator
 
+  action_swapinfo 2>/dev/null
+
   header "root processes"
   ps aux | grep root
   separator
 
   tip "'ps aux' enum processes"
   tip "see also: '/proc/<proc id>/cmdline' and other '/proc/<proc id>/...'"
+}
+
+function action_swapinfo() {
+  header "swap info"
+
+  if which swapon &> /dev/null; then
+    swapon --show
+    swapinfo=$(swapon --noheadings --show=NAME)
+  elif [[ -r /proc/swaps ]]; then
+    cat /proc/swaps
+    swapinfo=$(cat /proc/swaps | awk '{print $1}' | grep -vi 'filename')
+  fi
+
+  if [[ -n $swapinfo ]]; then
+    echo ''
+    while read -r swapfile; do
+      ls -lh "$swapfile" 2>/dev/null
+
+      if [[ -r "$swapfile" ]]; then
+        warn "READABLE swapfile: ${swapfile}"
+      fi
+    done <<< "$swapinfo"
+  fi
+
+  separator
 }
 
 function action_services() {
@@ -722,7 +749,7 @@ function action_passwords_secrets() {
       -path '*/.oh-my-zsh/*' -o \
       -path '*/node_modules/*' \
     \) -prune -o \
-    -type f -size -10k -exec grep -H -i -E 'password|apikey|api_key|apitoken|token|db_user|gho_.{36}' {} + 2>/dev/null
+    -type f -size -10k -exec grep -H -i -E 'password|apikey|api_key|token|db_user|gho_.{36}' {} + 2>/dev/null
   done
   separator
 }
@@ -1160,6 +1187,187 @@ function action_fsmon() {
 }
 
 # ======================================================================================================================
+# swap & RAM actions
+
+function _get_swapfiles_paths() {
+  if which swapon &> /dev/null; then
+    swapinfo=$(swapon --noheadings --show=NAME)
+  elif [[ -r /proc/swaps ]]; then
+    swapinfo=$(cat /proc/swaps | awk '{print $1}' | grep -vi 'filename')
+  fi
+  echo $swapinfo
+}
+
+function action_swapdump_save() {
+  if [[ -n $1 && $1 == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT save [<path>]"
+    echo -e " ${YELLOW}path${NC} \t path to save swap dump file (default: current dir)"
+    exit 1
+  fi
+
+  local destdir="./"
+  if [[ -n $1 && -d "$1" ]]; then destdir="${1}/"; fi
+  local swapfile
+  swapinfo=$(_get_swapfiles_paths)
+
+  if [[ -n $swapinfo ]]; then
+    for file in $swapinfo; do
+      if [[ -r "$file" ]]; then
+        echo -e "${YELLOW}Dumping swap file: ${file}${NC}"
+        swapfile="swapdump_$(date +%Y%m%d_%H%M%S).dmp"
+        dd if="$file" of="${destdir}${swapfile}" bs=1M status=progress
+        echo -e "${GREEN}Swap dump saved to: ${destdir}${swapfile}${NC}"
+      else
+        echo -e "${RED}Swap file not readable: ${file}${NC}"
+      fi
+    done
+  else
+    echo -e "${RED}No swap file found.${NC}"
+  fi
+}
+
+function action_swapdump_strings() {
+  if [[ -n $1 && $1 == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT strings [dumpfile]"
+    echo -e " ${YELLOW}dumpfile${NC} \t path to swap dump file (default: system swap file(s))"
+    exit 1
+  fi
+
+  local swapfiles
+
+  if [[ -n $1 && -r "$1" ]]; then
+    swapfiles="$1"
+  else
+    swapfiles=$(_get_swapfiles_paths)
+  fi
+
+  if [[ -n $swapfiles ]]; then
+    for file in $swapfiles; do
+      if [[ -r "$file" ]]; then
+        header "${YELLOW}Reading: ${file}${NC}"
+        strings "$file"
+      else
+        echo -e "${RED}Swap file not readable: ${file}${NC}"
+      fi
+    done
+  fi
+}
+
+function action_swapdump_hex() {
+  if [[ -n $1 && $1 == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT hex [dumpfile]"
+    echo -e " ${YELLOW}dumpfile${NC} \t path to swap dump file (default: system swap file(s))"
+    exit 1
+  fi
+
+  local swapfiles
+
+  if [[ -n $1 && -r "$1" ]]; then
+    swapfiles="$1"
+  else
+    swapfiles=$(_get_swapfiles_paths)
+  fi
+
+  if [[ -n $swapfiles ]]; then
+    for file in $swapfiles; do
+      if [[ -r "$file" ]]; then
+        header "${YELLOW}Reading: ${file}${NC}"
+        hexdump -C "$file"
+      else
+        echo -e "${RED}Swap file not readable: ${file}${NC}"
+      fi
+    done
+  fi
+}
+
+function _grep_strings_swap() {
+  local regex="$1"
+
+  local swapfiles
+
+  if [[ -n $2 && -r "$2" ]]; then
+    swapfiles="$2"
+  else
+    swapfiles=$(_get_swapfiles_paths)
+  fi
+
+  if [[ -n $swapfiles ]]; then
+    for file in $swapfiles; do
+      if [[ -r "$file" ]]; then
+        header "${YELLOW}Reading: ${file}${NC}"
+        strings "$file" | grep -Ei "$regex"
+      else
+        echo -e "${RED}Swap file not readable: ${file}${NC}"
+      fi
+    done
+  fi
+}
+
+function action_swapsearch_secrets() {
+  if [[ -n $1 && $1 == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT secrets [dumpfile]"
+    echo -e " ${YELLOW}dumpfile${NC} \t path to swap dump file (default: system swap file(s))"
+    exit 1
+  fi
+
+  _grep_strings_swap 'pass|secret|key|token' "$1"
+}
+
+function action_swapsearch_commands() {
+  if [[ -n $1 && $1 == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT commands [dumpfile]"
+    echo -e " ${YELLOW}dumpfile${NC} \t path to swap dump file (default: system swap file(s))"
+    exit 1
+  fi
+
+  #_grep_strings_swap 'exec |eval |base64 |bash |sh |nc |netcat |sudo |wget |curl |python |python3 ' "$1"
+  _grep_strings_swap 'bash |sh |sudo |wget |curl |python |python3 ' "$1"
+}
+
+function action_swapsearch_urls() {
+  if [[ -n $1 && $1 == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT urls [dumpfile]"
+    echo -e " ${YELLOW}dumpfile${NC} \t path to swap dump file (default: system swap file(s))"
+    exit 1
+  fi
+
+  _grep_strings_swap 'http[s]?://[^ ]+' "$1"
+}
+
+function action_swapsearch_tips() {
+  echo -e "${GREEN}usage:${NC} $SCRIPT swapdump strings | ${BLUE}grep ...${NC}\n"
+
+  echo -e "${YELLOW}Private Keys and Credentials:${NC}"
+  echo -e "  ${BLUE}grep -A5 'BEGIN RSA PRIVATE KEY'${NC}"
+  echo -e "  ${BLUE}grep -A5 'BEGIN OPENSSH PRIVATE KEY'${NC}"
+  echo -e "  ${BLUE}grep -iE 'ssh-|-----BEGIN'${NC}"
+  echo ''
+  echo -e "${YELLOW}Common Sensitive Keywords:${NC}"
+  echo -e "  ${BLUE}grep -iE 'password|passwd|secret|flag|api[_-]?key|token|username|login'${NC}"
+  echo ''
+  echo -e "${YELLOW}Shell History or Commands:${NC}"
+  echo -e "  ${BLUE}grep -iE 'bash |sh |sudo |nc |wget |curl |python |perl '${NC}"
+  echo ''
+  echo -e "${YELLOW}Potential Flags:${NC}"
+  echo -e "  ${BLUE}grep -iE 'flag{.*}|htb{.*}|CTF{.*}'${NC}"
+  echo ''
+  echo -e "${YELLOW}URLs and IPs:${NC}"
+  echo -e "  ${BLUE}grep -iE 'http[s]?://[^ ]+|([0-9]{1,3}\.){3}[0-9]{1,3}'${NC}"
+  echo ''
+  echo -e "${YELLOW}Emails:${NC}"
+  echo -e "  ${BLUE}grep -iE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'${NC}"
+  echo ''
+  echo -e "${YELLOW}Base64 Encoded Data:${NC}"
+  echo -e "  ${BLUE}grep -iE '([A-Za-z0-9+/]{4}){2,}={0,2}'${NC}"
+  echo ''
+  echo -e "${YELLOW}HTTP requests:${NC}"
+  echo -e "  ${BLUE}grep -E '(POST|GET|PUT|DELETE|HEAD).*HTTP'${NC}"
+  echo ''
+  echo -e "${YELLOW}Other Keywords:${NC}"
+  echo -e "  ${BLUE}grep -iE 'exec|eval|base64|cmd|system|upload'${NC}"
+}
+
+# ======================================================================================================================
 
 function script_info() {
 
@@ -1413,6 +1621,46 @@ function script_capabilities() {
   done
 }
 
+function script_swapdump() {
+  if [[ -z "$1" || "$1" == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <action>\n"
+    echo -e " ${BLUE}actions:${NC}"
+    echo -e "   ${YELLOW}save${NC}     [destdir]  \t copy/save all available swap file(s)"
+    echo -e "   ${YELLOW}strings${NC}  [dumpfile] \t print strings in swap file"
+    echo -e "   ${YELLOW}hex${NC}      [dumpfile] \t print hexdump with ascii"
+    exit 1
+  fi
+
+  local actions="save strings hex"
+
+  eval "action_swapdump_${1} \"${2}\""
+  return $?
+}
+
+function script_swapsearch() {
+    if [[ -z "$1" || "$1" == "-h" ]]; then
+    echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT [<action>|all]\n"
+    echo -e " ${BLUE}actions:${NC}"
+    echo -e "   ${YELLOW}secrets${NC}  [dumpfile] \t search for pass|secret|key|token"
+    #echo -e "   ${YELLOW}commands${NC} [dumpfile] \t search for 'bash |sh |sudo |wget |curl |python |python3 '"
+    echo -e "   ${YELLOW}urls${NC}     [dumpfile] \t search urls in swap files"
+    echo -e "   ${YELLOW}tips${NC}     [dumpfile] \t tips for finding sensitive data"
+    echo -e "\n no action - run all"
+    exit 1
+  fi
+
+  local actions="secrets commands urls tips"
+
+  if [[ -n $1 && "$1" != 'all' ]]; then
+    eval "action_swapsearch_${1} \"${2}\""
+    return $?
+  else
+    for action in $actions; do
+      eval "action_swapsearch_${action} \"${2}\""
+    done
+  fi
+}
+
 function script_ports_scanner() {
   if [[ -z $1 ]]; then
     echo -e "${GREEN}usage:${NC} $SCRIPT $INNER_SCRIPT <IP> [start port - 1] [end port - 65535]"
@@ -1458,7 +1706,7 @@ function script_sendfile() {
 
   local FILEPATH=$1
   local URL=$2
-  local CHECKSUM=$(md5sum $FILEPATH)
+  local CHECKSUM=$(md5sum $FILEPATH 2>/dev/null)
 
   local rslt=1
 
@@ -1781,6 +2029,11 @@ function help() {
     echo -e "   ${YELLOW}gtfobins${NC}                   \t check for installed GTFOBins"
     echo -e "   ${YELLOW}capabilities${NC}               \t enum existing capabilities for binaries"
 
+    echo -e "\n ${BLUE}swap & RAM:${NC}"
+    echo -e "   ${YELLOW}swapinfo${NC}                   \t print swap info"
+    echo -e "   ${YELLOW}swapdump${NC}      [-h]         \t dump/cp swapfile(s), strings, hex"
+    echo -e "   ${YELLOW}swapsearch${NC}    [-h]         \t search for passwords, tokens, secrets, ..."
+
     echo -e "\n ${BLUE}scaner scripts:${NC}"
     echo -e "   ${YELLOW}networkscan${NC}   [params]     \t scan internal network(s) for avail hosts"
     echo -e "   ${YELLOW}ncscan${NC}        [params]     \t simple TCP ports scanner using nc (preferable)"
@@ -1809,7 +2062,7 @@ function help() {
     echo -e "---\n\nhelp or -h: help & tips"
 }
 
-scripts="info files passwords logs searchw installedsoft gtfobins capabilities networkscan bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon minify localuser sectooldetect help -h -v"
+scripts="info files passwords logs searchw installedsoft gtfobins capabilities swapinfo swapdump swapsearch networkscan bashscan ncscan sendf httpserver ftpserver smbserver rexec download fsmon minify localuser sectooldetect help -h -v"
 if [[ -z "$1" || ! "$scripts" =~ (^|[[:space:]])"$1"($|[[:space:]]) ]]; then
   help
   exit 1
@@ -1824,7 +2077,11 @@ case "$INNER_SCRIPT" in
   "installedsoft") script_installed_soft ;;
   "gtfobins") script_gtfobins ;;
   "capabilities") script_capabilities ;;
-  
+
+  "swapinfo") action_swapinfo ;;
+  "swapdump") script_swapdump "$2" "$3" ;;
+  "swapsearch") script_swapsearch "$2" "$3" ;;
+
   "networkscan") script_scan_local_networks "$2" "$3" "$4" "$5" ;;
   "bashscan") script_ports_scanner "$2" "$3" "$4" "$5" ;;
   "ncscan") script_ports_ncscanner "$2" "$3" "$4" "$5" ;;
